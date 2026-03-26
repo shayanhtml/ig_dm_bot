@@ -27,27 +27,7 @@ from core.auth import (
 from core.scraper import get_recent_posts, get_post_interactors, sort_posts_by_priority
 from core.followers import get_followers
 from core.dm_sender import send_dm, DMResult, wait_between_dms
-class DummyTelegramBot:
-    """Dummy class to safely ignore all Telegram integrations for now."""
-    def __init__(self):
-        # Provide the properties the bot relies on
-        self.stats = {"status": "Stopped", "accounts_used": 0, "current_account": "", "current_model": "", "dms_sent": 0, "models_processed": 0, "dms_failed": 0}
-        self._polling = True
-
-    def add_log(self, msg): pass
-    def start_polling(self): pass
-    def send_startup(self): pass
-    def send_model_complete(self, *args, **kwargs): pass
-    def send_error(self, *args, **kwargs): pass
-    def send_session_complete(self, *args, **kwargs): pass
-    def stop_polling(self): pass
-    def send_challenge_alert(self, *args, **kwargs): pass
-    def wait_for_code(self, *args, **kwargs): return None
-    def wait_for_approval(self, *args, **kwargs): return False
-    def send_lockout_alert(self, *args, **kwargs): pass
-    def send_progress(self, *args, **kwargs): pass
-
-telegram_bot = DummyTelegramBot()
+from telegram.bot import telegram_bot
 
 logger = logging.getLogger("model_dm_bot")
 
@@ -270,8 +250,8 @@ def _perform_login(driver, account: dict) -> bool:
             log_and_telegram(f"⏰ No 2FA code received for @{username}")
             return False
 
-    elif challenge in (ChallengeType.SUSPICIOUS_LOGIN, ChallengeType.CHECKPOINT):
-        # Wait for employee to manually approve
+    elif challenge in (ChallengeType.SUSPICIOUS_LOGIN, ChallengeType.CHECKPOINT, ChallengeType.LOCKED):
+        # Wait for employee to manually approve (including Suspended/Locked)
         telegram_bot.send_challenge_alert(username, challenge.value)
         approved = telegram_bot.wait_for_approval(CHALLENGE_WAIT_TIMEOUT)
         if approved:
@@ -281,10 +261,6 @@ def _perform_login(driver, account: dict) -> bool:
             if is_logged_in(driver):
                 save_cookies(driver, username)
                 return True
-        return False
-
-    elif challenge == ChallengeType.LOCKED:
-        telegram_bot.send_lockout_alert(username, "Account is locked by Instagram")
         return False
 
     return False

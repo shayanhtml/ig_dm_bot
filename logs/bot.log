@@ -3598,3 +3598,67 @@ Stacktrace:
 2026-03-26 14:27:05 | INFO    | [Followers] Scraped 8 followers for @mishibutt159
 2026-03-26 14:27:05 | INFO    | [maebeytx] DMing @chaskaprime...
 2026-03-26 14:27:05 | INFO    | [DM] Initiating DM flow for @chaskaprime...
+2026-03-26 17:14:12 | INFO    | 🔄 SESSION #1 STARTING
+2026-03-26 17:14:12 | INFO    | ============================================================
+2026-03-26 17:14:12 | INFO    |   INSTAGRAM MODEL DM BOT — STARTING
+2026-03-26 17:14:12 | INFO    | ============================================================
+2026-03-26 17:14:12 | INFO    | Loaded 2 accounts, 1 models, 5 message templates
+2026-03-26 17:14:12 | INFO    | ━━━ Switching to account: @test_user619 ━━━
+2026-03-26 17:14:12 | INFO    | [Browser] Detected Chrome version: 146
+2026-03-26 17:14:47 | INFO    | [test_user619] Attempting cookie login...
+2026-03-26 17:14:53 | INFO    | [test_user619] Injected 10/10 cookies
+2026-03-26 17:15:12 | INFO    | [test_user619] ✅ Cookie login successful!
+2026-03-26 17:15:12 | INFO    | [test_user619] Saved 11 cookies to test_user619.json
+2026-03-26 17:15:12 | INFO    | 🎯 Targeting model: @mishibutt159
+2026-03-26 17:15:12 | INFO    | [test_user619] Target: send 10 DMs for @mishibutt159
+2026-03-26 17:15:12 | INFO    | [Scraper] Navigating to model profile: https://www.instagram.com/mishibutt159/
+2026-03-26 17:15:29 | WARNING | [Scraper] No posts found for @mishibutt159
+2026-03-26 17:15:29 | INFO    | [test_user619] No posts found for @mishibutt159, going to followers
+2026-03-26 17:15:29 | INFO    | [Followers] Opening @mishibutt159's followers list
+2026-03-26 17:31:49 | INFO    | 🔄 SESSION #1 STARTING
+2026-03-26 17:31:49 | INFO    | ============================================================
+2026-03-26 17:31:49 | INFO    |   INSTAGRAM MODEL DM BOT — STARTING
+2026-03-26 17:31:49 | INFO    | ============================================================
+2026-03-26 17:31:49 | INFO    | Loaded 2 accounts, 1 models, 5 message templates
+2026-03-26 17:31:49 | INFO    | [Telegram] Polling thread started
+2026-03-26 17:31:59 | ERROR   | [Telegram] Failed to send: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001E6A1F1EFD0>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-26 17:31:59 | INFO    | ━━━ Switching to account: @test_user619 ━━━
+2026-03-26 17:31:59 | INFO    | [Browser] Detected Chrome version: 146
+2026-03-26 17:32:13 | INFO    | [test_user619] Attempting cookie login...
+2026-03-26 17:32:20 | INFO    | [test_user619] Injected 11/11 cookies
+2026-03-26 17:32:40 | INFO    | [test_user619] ✅ Cookie login successful!
+2026-03-26 17:32:40 | INFO    | [test_user619] Saved 11 cookies to test_user619.json
+2026-03-26 17:32:40 | INFO    | 🎯 Targeting model: @mishibutt159
+2026-03-26 17:32:40 | INFO    | [test_user619] Target: send 7 DMs for @mishibutt159
+2026-03-26 17:32:40 | INFO    | [Scraper] Navigating to model profile: https://www.instagram.com/mishibutt159/
+2026-03-26 17:32:57 | WARNING | [Scraper] No posts found for @mishibutt159
+2026-03-26 17:32:57 | INFO    | [test_user619] No posts found for @mishibutt159, going to followers
+2026-03-26 17:32:57 | INFO    | [Followers] Opening @mishibutt159's followers list
+2026-03-26 17:33:03 | WARNING | [Followers] Could not find followers link for @mishibutt159
+2026-03-26 17:33:03 | INFO    | ⚠️ Lost login for @test_user619 during model processing
+2026-03-26 17:33:03 | INFO    | [test_user619] Refreshing cookies...
+2026-03-26 17:33:03 | ERROR   | [test_user619] Failed to save cookies: Message: invalid session id; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0x62cdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0x62cf24+10c34]
+	undetected_chromedriver!(No symbol) [0x411f5e]
+	undetected_chromedriver!(No symbol) [0x44f4b7]
+	undetected_chromedriver!(No symbol) [0x47d9c6]
+	undetected_chromedriver!(No symbol) [0x478e42]
+	undetected_chromedriver!(No symbol) [0x478462]
+	undetected_chromedriver!(No symbol) [0x3e534e]
+	undetected_chromedriver!(No symbol) [0x3e58ee]
+	undetected_chromedriver!(No symbol) [0x3e5dcd]
+	undetected_chromedriver!GetHandleVerifier [0x8948b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0x88feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x8ae06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0x645cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0x64d9fd+3170d]
+	undetected_chromedriver!(No symbol) [0x3e4ee9]
+	undetected_chromedriver!(No symbol) [0x3e4530]
+	undetected_chromedriver!GetHandleVerifier [0x9e2e9f+3c6baf]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+2026-03-26 17:33:04 | INFO    | ⏳ Waiting 17s before switching accounts...
