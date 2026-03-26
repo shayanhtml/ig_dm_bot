@@ -1,0 +1,95 @@
+[
+  {
+    "domain": ".instagram.com",
+    "httpOnly": true,
+    "name": "ps_l",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "1"
+  },
+  {
+    "domain": ".instagram.com",
+    "expiry": 1775121880,
+    "httpOnly": false,
+    "name": "wd",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "1370x693"
+  },
+  {
+    "domain": ".instagram.com",
+    "httpOnly": true,
+    "name": "ps_n",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "1"
+  },
+  {
+    "domain": ".instagram.com",
+    "httpOnly": true,
+    "name": "datr",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "eii4aXjscqZJYEw5ttb93BX7"
+  },
+  {
+    "domain": ".instagram.com",
+    "expiry": 1782293085,
+    "httpOnly": false,
+    "name": "ds_user_id",
+    "path": "/",
+    "sameSite": "None",
+    "secure": true,
+    "value": "41713723858"
+  },
+  {
+    "domain": ".instagram.com",
+    "httpOnly": true,
+    "name": "ig_did",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "76595C54-AE6A-4CD0-B456-EBACA8F4BA36"
+  },
+  {
+    "domain": ".instagram.com",
+    "httpOnly": true,
+    "name": "mid",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "abgoegALAAFAMTQMhbsFH00T8Un5"
+  },
+  {
+    "domain": ".instagram.com",
+    "httpOnly": true,
+    "name": "rur",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "\"RVA\\05441713723858\\0541806053086:01fe2026a08600586f3efccce232ea67098369cf13fda50d30fb015e443541ed7bacce3d\""
+  },
+  {
+    "domain": ".instagram.com",
+    "expiry": 1809077085,
+    "httpOnly": false,
+    "name": "csrftoken",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "gS7JLXof2r10dlw7f8KHNIyg3xBcEHtx"
+  },
+  {
+    "domain": ".instagram.com",
+    "httpOnly": true,
+    "name": "sessionid",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "41713723858%3AtB28VBxiQ0gh1n%3A3%3AAYhL1S4oJ4nG27YtrVGOEC8AYn7S4CUVaoHLseIhnA"
+  }
+]
