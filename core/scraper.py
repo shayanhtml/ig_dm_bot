@@ -109,7 +109,7 @@ def get_post_age_hours(driver) -> float:
     return 999.0  # Unknown age — treat as old
 
 
-def get_post_interactors(driver, post_url: str, already_dmd: set) -> list:
+def get_post_interactors(driver, post_url: str, already_dmd: set, model_username: str) -> list:
     """
     Open a post and scrape usernames of commenters and likers.
     
@@ -117,6 +117,7 @@ def get_post_interactors(driver, post_url: str, already_dmd: set) -> list:
         driver: WebDriver instance
         post_url: URL of the Instagram post
         already_dmd: Set of usernames already DM'd (to skip)
+        model_username: The username of the model whose post we are scraping (to skip)
     
     Returns:
         List of unique usernames who interacted with the post
@@ -201,7 +202,7 @@ def get_post_interactors(driver, post_url: str, already_dmd: set) -> list:
         if js_usernames:
             logger.info(f"[Scraper] JS extracted {len(js_usernames)} usernames")
             for uname in js_usernames:
-                if uname and uname not in already_dmd:
+                if uname and uname != model_username and uname not in already_dmd:
                     usernames.add(uname)
     except Exception as e:
         logger.debug(f"[Scraper] JS extraction error: {e}")
@@ -241,6 +242,7 @@ def get_post_interactors(driver, post_url: str, already_dmd: set) -> list:
         logger.debug(f"[Scraper] Error scraping likers: {e}")
 
     # Remove the model's own username if present
+    usernames.discard(model_username)
     final_list = list(usernames)
     logger.info(f"[Scraper] Found {len(final_list)} unique interactors ({commenter_count} commenters, {len(final_list) - commenter_count} likers)")
     return final_list

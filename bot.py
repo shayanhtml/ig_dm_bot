@@ -353,7 +353,7 @@ def _process_model(
 
         log_and_telegram(f"[{username}] Scraping post ({age_label} old): {post['url'][-20:]}")
 
-        interactors = get_post_interactors(driver, post["url"], already_dmd)
+        interactors = get_post_interactors(driver, post["url"], already_dmd, model_username)
 
         if interactors:
             remaining_for_posts = post_dm_target - post_dms_sent

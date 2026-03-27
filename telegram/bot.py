@@ -78,12 +78,10 @@ class TelegramBot:
 
     def send_challenge_alert(self, account: str, challenge_type: str, url: str = ""):
         """Alert employees that an account needs human intervention."""
-        url_text = f"🔗 URL: `{url}`\n\n" if url else "\n"
         self.send(
             f"⚠️ *CHALLENGE DETECTED*\n\n"
             f"👤 Account: `{account}`\n"
-            f"🔒 Type: `{challenge_type}`\n"
-            f"{url_text}"
+            f"🔒 Type: `{challenge_type}`\n\n"
             f"*Actions:*\n"
             f"• Reply `/code 123456` to submit a 2FA code\n"
             f"• Reply `/approve` after manual resolution\n"
