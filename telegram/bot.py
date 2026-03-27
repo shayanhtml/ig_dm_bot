@@ -10,7 +10,7 @@ import requests
 from collections import deque
 from datetime import datetime
 
-from config.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from config.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_IDS
 
 logger = logging.getLogger("model_dm_bot")
 
@@ -23,9 +23,16 @@ class TelegramBot:
     - Provides /status command support
     """
 
-    def __init__(self, token: str = None, chat_id: str = None):
+    def __init__(self, token: str = None, chat_ids: list = None):
         self.token = token or TELEGRAM_BOT_TOKEN
-        self.chat_id = chat_id or TELEGRAM_CHAT_ID
+        
+        if chat_ids is not None:
+            self.chat_ids = [str(c) for c in chat_ids]
+        else:
+            if isinstance(TELEGRAM_CHAT_IDS, str):
+                self.chat_ids = [cid.strip() for cid in TELEGRAM_CHAT_IDS.split(",") if cid.strip()]
+            else:
+                self.chat_ids = [str(cid) for cid in TELEGRAM_CHAT_IDS if cid]
         self.base_url = f"https://api.telegram.org/bot{self.token}"
 
         self.last_update_id = 0
@@ -51,21 +58,23 @@ class TelegramBot:
     # ──────────────────────────────────────────
 
     def send(self, message: str):
-        """Send a message to the configured chat."""
-        if not self.token or not self.chat_id:
+        """Send a message to all configured chats."""
+        if not self.token or not self.chat_ids:
             return
-        try:
-            requests.post(
-                f"{self.base_url}/sendMessage",
-                data={
-                    "chat_id": self.chat_id,
-                    "text": message,
-                    "parse_mode": "Markdown",
-                },
-                timeout=10,
-            )
-        except Exception as e:
-            logger.error(f"[Telegram] Failed to send: {e}")
+        
+        for chat_id in self.chat_ids:
+            try:
+                requests.post(
+                    f"{self.base_url}/sendMessage",
+                    data={
+                        "chat_id": chat_id,
+                        "text": message,
+                        "parse_mode": "Markdown",
+                    },
+                    timeout=10,
+                )
+            except Exception as e:
+                logger.error(f"[Telegram] Failed to send to {chat_id}: {e}")
 
     def send_startup(self):
         """Send bot startup notification."""
@@ -205,7 +214,7 @@ class TelegramBot:
         text = message.get("text", "").strip()
         sender_id = str(message.get("chat", {}).get("id", ""))
 
-        if sender_id != self.chat_id:
+        if sender_id not in self.chat_ids:
             return
 
         if not text:

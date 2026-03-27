@@ -4437,3 +4437,12 @@ Stacktrace:
 2026-03-27 18:37:15 | INFO    | [DM] ✅ Message sent to @malik_omer_496_
 2026-03-27 18:37:15 | INFO    | [maebeytx] ✅ DM sent to @malik_omer_496_ (4/4)
 2026-03-27 18:37:15 | INFO    | [maebeytx] ✅ Completed @mishibutt159: 8/8 DMs sent
+2026-03-27 22:07:49 | INFO    | 🔄 SESSION #1 STARTING
+2026-03-27 22:07:49 | INFO    | ============================================================
+2026-03-27 22:07:49 | INFO    |   INSTAGRAM MODEL DM BOT — STARTING
+2026-03-27 22:07:49 | INFO    | ============================================================
+2026-03-27 22:07:49 | INFO    | Loaded 1 accounts, 1 models, 5 message templates
+2026-03-27 22:07:49 | INFO    | [Telegram] Polling thread started
+2026-03-27 22:07:59 | ERROR   | [Telegram] Failed to send: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000025C5B09C390>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-27 22:07:59 | INFO    | ━━━ Switching to account: @test_user619 ━━━
+2026-03-27 22:07:59 | INFO    | [Browser] Detected Chrome version: 146

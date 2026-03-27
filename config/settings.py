@@ -26,7 +26,7 @@ DM_LOG_FILE = os.path.join(DATA_DIR, "dm_log.json")
 # Telegram
 # ──────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = "8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE"
-TELEGRAM_CHAT_ID = "8592007309"
+TELEGRAM_CHAT_IDS = ["8592007309"] # Add multiple IDs here, e.g., ["123", "456"]
 
 # ──────────────────────────────────────────────
 # DM Limits
@@ -53,7 +53,7 @@ COOLDOWN_MAX = 40              # Max minutes between bot sessions
 # ──────────────────────────────────────────────
 # Post Age Priority
 # ──────────────────────────────────────────────
-POST_AGE_PRIORITY_HOURS = 24    # DM interactors of posts < this age first
+POST_AGE_PRIORITY_HOURS = 24
 
 # ──────────────────────────────────────────────
 # Scraping Limits
