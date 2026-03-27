@@ -117,9 +117,26 @@ def run_bot():
 
     logger.info(f"Loaded {len(accounts)} accounts, {len(models)} models, {len(messages)} message templates")
 
-    # Load DM log
+    # Load DM log and build 24-hour exclusion set
+    from datetime import datetime, timedelta
     dm_log = load_dm_log()
-    already_dmd = set(dm_log.keys())
+    already_dmd = set()
+    cutoff_time = datetime.now() - timedelta(hours=24)
+    
+    for user_dmd, data in dm_log.items():
+        try:
+            timestamp_str = data.get("timestamp", "")
+            if not timestamp_str:
+                already_dmd.add(user_dmd)
+                continue
+            
+            # support fromisoformat compatibility
+            dmd_time = datetime.fromisoformat(timestamp_str)
+            if dmd_time > cutoff_time:
+                already_dmd.add(user_dmd)
+        except (ValueError, TypeError):
+            # Fallback for old/corrupted formats
+            already_dmd.add(user_dmd)
 
     # Start Telegram
     telegram_bot.start_polling()
@@ -244,7 +261,7 @@ def _perform_login(driver, account: dict) -> bool:
         return False
 
     log_and_telegram(f"🔒 Challenge for @{username}: {challenge.value}")
-    telegram_bot.send_challenge_alert(username, challenge.value)
+    telegram_bot.send_challenge_alert(username, challenge.value, driver.current_url)
 
     if challenge == ChallengeType.TWO_FACTOR:
         # Wait for employee to send code via Telegram
@@ -258,7 +275,7 @@ def _perform_login(driver, account: dict) -> bool:
                 post_2fa_challenge = detect_challenge(driver)
                 if post_2fa_challenge in (ChallengeType.SUSPICIOUS_LOGIN, ChallengeType.CHECKPOINT, ChallengeType.LOCKED):
                     log_and_telegram(f"🔒 Post-2FA Verification detected: {post_2fa_challenge.value}")
-                    telegram_bot.send_challenge_alert(username, post_2fa_challenge.value)
+                    telegram_bot.send_challenge_alert(username, post_2fa_challenge.value, driver.current_url)
                     approved = telegram_bot.wait_for_approval(CHALLENGE_WAIT_TIMEOUT)
                     if approved:
                         driver.refresh()
@@ -273,7 +290,7 @@ def _perform_login(driver, account: dict) -> bool:
 
     elif challenge in (ChallengeType.SUSPICIOUS_LOGIN, ChallengeType.CHECKPOINT, ChallengeType.LOCKED):
         # Wait for employee to manually approve (including Suspended/Locked)
-        telegram_bot.send_challenge_alert(username, challenge.value)
+        telegram_bot.send_challenge_alert(username, challenge.value, driver.current_url)
         approved = telegram_bot.wait_for_approval(CHALLENGE_WAIT_TIMEOUT)
         if approved:
             # Refresh the page and check login

@@ -76,12 +76,14 @@ class TelegramBot:
             "Use `/stop` to request stop"
         )
 
-    def send_challenge_alert(self, account: str, challenge_type: str):
+    def send_challenge_alert(self, account: str, challenge_type: str, url: str = ""):
         """Alert employees that an account needs human intervention."""
+        url_text = f"🔗 URL: `{url}`\n\n" if url else "\n"
         self.send(
             f"⚠️ *CHALLENGE DETECTED*\n\n"
             f"👤 Account: `{account}`\n"
-            f"🔒 Type: `{challenge_type}`\n\n"
+            f"🔒 Type: `{challenge_type}`\n"
+            f"{url_text}"
             f"*Actions:*\n"
             f"• Reply `/code 123456` to submit a 2FA code\n"
             f"• Reply `/approve` after manual resolution\n"
@@ -99,14 +101,8 @@ class TelegramBot:
         )
 
     def send_progress(self, account: str, model: str, dms_sent: int, total_target: int):
-        """Send a progress update."""
-        self.send(
-            f"📊 *PROGRESS*\n\n"
-            f"👤 Account: `{account}`\n"
-            f"🎯 Model: `@{model}`\n"
-            f"✉️ DMs: {dms_sent}/{total_target}\n"
-            f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}"
-        )
+        """Send a progress update. Muted by user request to prevent spam."""
+        pass
 
     def send_model_complete(self, model: str, dms_sent: int):
         """Notify that a model target is complete."""
