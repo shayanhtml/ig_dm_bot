@@ -228,11 +228,16 @@ def _perform_login(driver, account: dict) -> bool:
     if login_with_cookies(driver, account):
         return True
 
-    # Try credential login
-    if login_with_credentials(driver, account):
-        return True
-
-    # Check for challenges
+    # Check if cookie login failed because it hit a challenge
+    challenge = detect_challenge(driver)
+    if challenge != ChallengeType.NONE:
+        logger.warning(f"[{username}] Challenge detected after cookie injection, skipping credential login.")
+    else:
+        # Only try credential login if no challenge is blocking us
+        if login_with_credentials(driver, account):
+            return True
+        
+    # Final check for challenges (from either cookie or credential login)
     challenge = detect_challenge(driver)
 
     if challenge == ChallengeType.NONE:
@@ -245,7 +250,23 @@ def _perform_login(driver, account: dict) -> bool:
         # Wait for employee to send code via Telegram
         code = telegram_bot.wait_for_code(CHALLENGE_WAIT_TIMEOUT)
         if code:
-            return handle_two_factor(driver, account, code)
+            success = handle_two_factor(driver, account, code)
+            if success:
+                return True
+            else:
+                # Re-check for challenges in case 2FA led directly to a checkpoint/suspension
+                post_2fa_challenge = detect_challenge(driver)
+                if post_2fa_challenge in (ChallengeType.SUSPICIOUS_LOGIN, ChallengeType.CHECKPOINT, ChallengeType.LOCKED):
+                    log_and_telegram(f"🔒 Post-2FA Verification detected: {post_2fa_challenge.value}")
+                    telegram_bot.send_challenge_alert(username, post_2fa_challenge.value)
+                    approved = telegram_bot.wait_for_approval(CHALLENGE_WAIT_TIMEOUT)
+                    if approved:
+                        driver.refresh()
+                        human_delay(3, 5)
+                        if is_logged_in(driver):
+                            save_cookies(driver, username)
+                            return True
+            return False
         else:
             log_and_telegram(f"⏰ No 2FA code received for @{username}")
             return False
@@ -296,16 +317,20 @@ def _process_model(
 
     # Step 2: Sort posts by age priority
     sorted_posts = sort_posts_by_priority(posts, driver)
+    
+    # We want to dedicate at least 50% of DMs to followers, so cap post DMs
+    post_dm_target = max(1, dm_target // 2)
+    post_dms_sent = 0
 
     # Step 3: DM post interactors
     for post in sorted_posts:
-        if dms_sent >= dm_target:
+        if dms_sent >= dm_target or post_dms_sent >= post_dm_target:
             break
 
         age_label = f"{post['age_hours']}h" if post['age_hours'] < 999 else "unknown"
 
-        # Skip posts older than 4 hours
-        if post['age_hours'] > 4:
+        # Skip posts older than 24 hours
+        if post['age_hours'] > 24:
             log_and_telegram(f"[{username}] ⏭️ Skipping post ({age_label} old) — too old: {post['url'][-20:]}")
             continue
 
@@ -314,10 +339,13 @@ def _process_model(
         interactors = get_post_interactors(driver, post["url"], already_dmd)
 
         if interactors:
-            remaining = dm_target - dms_sent
+            remaining_for_posts = post_dm_target - post_dms_sent
+            remaining = min(remaining_for_posts, dm_target - dms_sent)
+            
             targets = interactors[:remaining]
             sent = _dm_list(driver, targets, messages, dm_log, already_dmd, remaining, username, model_username)
             dms_sent += sent
+            post_dms_sent += sent
 
             # Progress update
             telegram_bot.send_progress(username, model_username, dms_sent, dm_target)

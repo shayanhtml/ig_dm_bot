@@ -84,11 +84,10 @@ def send_dm(driver, username: str, message: str) -> str:
             query_box = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.NAME, "queryBox"))
             )
-            # Clear thoroughly before typing
+            # Clear thoroughly using JS since background tabs ignore Ctrl+A
             query_box.click()
             human_delay(0.3, 0.5)
-            query_box.send_keys(Keys.CONTROL, "a")
-            query_box.send_keys(Keys.DELETE)
+            driver.execute_script("arguments[0].value = ''; arguments[0].dispatchEvent(new Event('input', {bubbles:true}));", query_box)
             query_box.clear()
             human_delay(0.5, 1)
             query_box.send_keys(username)
@@ -100,6 +99,14 @@ def send_dm(driver, username: str, message: str) -> str:
         # Step 3: Select first from list
         logger.info(f"[DM] Selecting user @{username} from search results...")
         try:
+            # In unfocused tabs, React renders very slowly. 
+            # We MUST wait for the actual username text to appear in the modal before clicking checkboxes, 
+            # otherwise it clicks the first "Suggested" user from the stale results!
+            username_xpath = f"//div[@role='dialog']//span[text()='{username}' or text()='{username.lower()}']"
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, username_xpath))
+            )
+            
             checkbox = WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.NAME, "ContactSearchResultCheckbox"))
             )
@@ -140,12 +147,16 @@ def send_dm(driver, username: str, message: str) -> str:
             human_delay(0.5, 1)
 
         try:
-            pyperclip.copy(message)
-            text_area.send_keys(Keys.CONTROL, "v")
+            # Avoid `pyperclip` system clipboard, as it requires OS window focus and overwrites user's clipboard.
+            # Instead, use seamless JS execCommand to paste text retaining emojis natively.
+            driver.execute_script(
+                "arguments[0].focus(); document.execCommand('insertText', false, arguments[1]);",
+                text_area, message
+            )
             human_delay(1, 2)
-            logger.info(f"[DM] Message pasted for @{username}")
+            logger.info(f"[DM] Message safely injected for @{username}")
         except Exception as e:
-            logger.warning(f"[DM] Error pasting message: {e}. Falling back to typing.")
+            logger.warning(f"[DM] Error injecting message: {e}. Falling back to typing.")
             text_area.send_keys(message)
             human_delay(1, 2)
 

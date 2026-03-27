@@ -164,34 +164,42 @@ def get_post_interactors(driver, post_url: str, already_dmd: set) -> list:
     #    This scans all <a> tags on the page and filters to profile links
     #    that appear inside comment list items
     try:
+        # Wait a little longer for comments to fully render
+        human_delay(4, 6)
+        
         js_usernames = driver.execute_script("""
             var usernames = [];
-            // Get all <a> tags with role="link" inside <li> elements
-            var links = document.querySelectorAll('li a[role="link"][href]');
+            // Get all <a> tags with an href attribute on the entire page
+            var links = document.querySelectorAll('a[href]');
             for (var i = 0; i < links.length; i++) {
-                var href = links[i].getAttribute('href');
-                if (!href) continue;
-                // Only profile links: /username/ format (single path segment)
-                var parts = href.replace(/^\\//, '').replace(/\\/$/, '').split('/');
-                if (parts.length !== 1) continue;
-                var username = parts[0];
-                // Skip non-username paths
-                if (['explore', 'p', 'reel', 'stories', 'accounts', 'direct', 'c', 'reels'].indexOf(username) >= 0) continue;
-                // Skip if it's just a number (comment ID)
-                if (/^\\d+$/.test(username)) continue;
-                // Skip empty
-                if (!username) continue;
-                // Only add if the link text matches the username (commenter links)
-                var text = links[i].textContent.trim();
-                if (text === username) {
-                    usernames.push(username);
-                }
+                try {
+                    // Use pathname to cleanly get the path without query params or domain
+                    var path = links[i].pathname;
+                    if (!path) continue;
+                    
+                    // Split and remove empty segments
+                    var parts = path.split('/').filter(function(p) { return p.trim().length > 0; });
+                    if (parts.length !== 1) continue;
+                    
+                    var username = parts[0].toLowerCase();
+                    // Skip non-username paths
+                    if (['explore', 'p', 'reel', 'stories', 'accounts', 'direct', 'c', 'reels'].indexOf(username) >= 0) continue;
+                    // Skip if it's just a number (comment ID)
+                    if (/^\\d+$/.test(username)) continue;
+                    if (!username) continue;
+                    
+                    // Only add if the link text essentially matches the username
+                    var text = links[i].textContent.trim().toLowerCase();
+                    if (text === username) {
+                        usernames.push(parts[0]);
+                    }
+                } catch(e) {}
             }
             // Deduplicate
             return [...new Set(usernames)];
         """)
         if js_usernames:
-            logger.info(f"[Scraper] JS extracted {len(js_usernames)} commenter usernames")
+            logger.info(f"[Scraper] JS extracted {len(js_usernames)} usernames")
             for uname in js_usernames:
                 if uname and uname not in already_dmd:
                     usernames.add(uname)

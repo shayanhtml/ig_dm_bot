@@ -37,8 +37,8 @@ DM_MAX_PER_MODEL = 10          # Max DMs to send per model target
 # ──────────────────────────────────────────────
 # Delays (seconds) — human-like random intervals
 # ──────────────────────────────────────────────
-DM_DELAY_MIN = 5               # Min seconds between DMs
-DM_DELAY_MAX = 15              # Max seconds between DMs
+DM_DELAY_MIN = 3               # Min seconds between DMs
+DM_DELAY_MAX = 7              # Max seconds between DMs
 ACTION_DELAY_MIN = 2           # Min seconds between page actions
 ACTION_DELAY_MAX = 5           # Max seconds between page actions
 TYPING_DELAY_MIN = 0.05        # Min seconds between keystrokes

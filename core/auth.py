@@ -62,7 +62,7 @@ def detect_challenge(driver) -> ChallengeType:
     # Check URL patterns
     if "challenge" in current_url:
         return ChallengeType.CHECKPOINT
-    if "two_factor" in current_url:
+    if "two_factor" in current_url or "codeentry" in current_url:
         return ChallengeType.TWO_FACTOR
     if "suspended" in current_url or "help" in current_url:
         return ChallengeType.LOCKED
@@ -88,8 +88,14 @@ def detect_challenge(driver) -> ChallengeType:
 def is_logged_in(driver) -> bool:
     """Check if we're currently logged into Instagram."""
     try:
-        current_url = driver.current_url
+        current_url = driver.current_url.lower()
+        
+        # If we are strictly on the login page or a challenge page, we are not fully logged in.
         if "/accounts/login" in current_url:
+            return False
+            
+        challenge = detect_challenge(driver)
+        if challenge != ChallengeType.NONE:
             return False
 
         # Look for logged-in indicators
@@ -108,8 +114,8 @@ def is_logged_in(driver) -> bool:
             except Exception:
                 continue
 
-        # Fallback: if we're not on login page, probably logged in
-        return "/accounts/login" not in driver.current_url
+        # Fallback: if we're not on login page and no challenge is found, probably logged in
+        return True
     except Exception:
         return False
 
@@ -318,7 +324,11 @@ def handle_two_factor(driver, account: dict, code: str) -> bool:
         code_input = None
         selectors = [
             (By.NAME, "verificationCode"),
+            (By.NAME, "security_code"),
+            (By.NAME, "email"),
             (By.XPATH, "//input[@name='verificationCode']"),
+            (By.XPATH, "//input[@name='security_code']"),
+            (By.XPATH, "//input[@name='email']"),
             (By.XPATH, "//input[contains(@placeholder, 'Code')]"),
             (By.XPATH, "//input[@type='number']"),
             (By.XPATH, "//input[contains(@aria-label, 'code')]"),
@@ -347,6 +357,8 @@ def handle_two_factor(driver, account: dict, code: str) -> bool:
             "//button[contains(text(), 'Confirm')]",
             "//button[contains(text(), 'Submit')]",
             "//button[contains(text(), 'Verify')]",
+            "//div[@role='button' and contains(., 'Continue')]",
+            "//div[@role='button']//span[contains(text(), 'Continue')]",
             "//button[@type='button' and not(contains(text(), 'Back'))]",
         ]
         for xpath in submit_selectors:
@@ -354,7 +366,8 @@ def handle_two_factor(driver, account: dict, code: str) -> bool:
                 btn = WebDriverWait(driver, 3).until(
                     EC.element_to_be_clickable((By.XPATH, xpath))
                 )
-                btn.click()
+                # Sometimes div buttons need JS click if they are obstructed
+                driver.execute_script("arguments[0].click();", btn)
                 break
             except Exception:
                 continue
