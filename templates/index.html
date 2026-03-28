@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instagram Model DM Bot - Control Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-soft: #182538;
+      --surface-border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --primary-soft: rgba(59, 130, 246, 0.22);
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --gradient: linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+      --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Manrope', sans-serif; }
+    
+    body {
+      background:
+        radial-gradient(1100px 500px at -10% -20%, rgba(59,130,246,0.18), transparent 60%),
+        radial-gradient(900px 500px at 120% 110%, rgba(16,185,129,0.16), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      line-height: 1.45;
+    }
+    
+    /* Sidebar */
+    .sidebar { width: 260px; background: rgba(11, 17, 32, 0.9); padding: 1.75rem 1rem; border-right: 1px solid var(--surface-border); display: flex; flex-direction: column; backdrop-filter: blur(10px); }
+    .sidebar h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 1.2rem; padding: 0 1rem; background: var(--gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: flex; align-items: center; gap: 0.5rem; }
+    .sidebar-spacer { margin-bottom: 1rem; }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 0.25rem; }
+    .sidebar-footer { margin-top: auto; padding-top: 1rem; }
+    .nav-btn { background: transparent; color: var(--text-muted); border: none; padding: 0.75rem 1rem; border-radius: 10px; text-align: left; font-size: 0.95rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.75rem; transition: all 0.2s; margin-bottom: 0.25rem; }
+    .nav-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .nav-btn.active { background: linear-gradient(135deg, var(--primary), #0ea5e9); color: white; box-shadow: 0 8px 20px -12px rgba(14, 165, 233, 0.9); }
+    .nav-btn.logout { color: #fecaca; border: 1px solid rgba(239, 68, 68, 0.28); }
+    .nav-btn.logout:hover { background: rgba(127, 29, 29, 0.28); color: #fee2e2; }
+    
+    /* Main Content */
+    .main { flex: 1; overflow-y: auto; padding: 2rem 2.5rem; position: relative; }
+    .tab-content { display: none; animation: fadeIn 0.3s ease; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    
+    h1 { font-size: 1.8rem; font-weight: 600; margin-bottom: 1.5rem; color: #fff; }
+    
+    /* Cards & Form elements */
+    .card { background: linear-gradient(180deg, rgba(27, 38, 58, 0.95), rgba(23, 33, 50, 0.95)); border: 1px solid var(--surface-border); border-radius: 14px; padding: 1.35rem; margin-bottom: 1.25rem; box-shadow: 0 14px 30px -20px rgba(0, 0, 0, 0.75); }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); margin-bottom: 0.5rem; }
+    input, textarea, select { width: 100%; background: #0f172a; border: 1px solid var(--surface-border); border-radius: 8px; padding: 0.72rem 0.78rem; color: var(--text); font-size: 0.95rem; transition: border 0.2s, box-shadow 0.2s, transform 0.2s; }
+    input:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--focus-ring); }
+    textarea { resize: vertical; min-height: 120px; font-family: inherit; }
+    
+    .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border: 1px solid transparent; border-radius: 9px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: all 0.2s; color: white; }
+    .btn-primary { background: var(--primary); }
+    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+    .btn-success { background: var(--success); }
+    .btn-success:hover { background: #059669; transform: translateY(-1px); }
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: #dc2626; transform: translateY(-1px); }
+    .btn-sm { padding: 0.45rem 0.78rem; font-size: 0.8rem; border-radius: 6px; }
+    
+    /* Dashboard specific */
+    .dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card { background: linear-gradient(180deg, rgba(31, 46, 70, 0.9), rgba(25, 36, 55, 0.95)); border: 1px solid var(--surface-border); border-radius: 12px; padding: 1.5rem; text-align: center; }
+    .stat-card h3 { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+    .stat-card .val { font-size: 2rem; font-weight: 600; color: #fff; }
+    
+    .terminal { background: #070b14; border: 1px solid #1e293b; border-radius: 12px; height: 350px; overflow-y: auto; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: #e2e8f0; }
+    .terminal .line { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .log-success { color: var(--success); }
+    .log-error { color: var(--danger); }
+    .log-warn { color: var(--warning); }
+    .log-info { color: #94a3b8; }
+
+    /* Tables */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+    th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--surface-border); }
+    th { color: var(--text-muted); font-weight: 500; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    tr:last-child td { border-bottom: none; }
+
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+    ::-webkit-scrollbar-thumb { background: #2b3d58; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #375073; }
+    
+    /* Toast */
+    .toast { position: fixed; bottom: 20px; right: 20px; background: var(--success); color: white; padding: 1rem 2rem; border-radius: 8px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: translateY(100px); opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 999; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    
+    /* Badges */
+    .badge { padding: 0.25rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+    .badge-running { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-stopped, .badge-idle { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .badge-cooldown { background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.4); }
+
+    /* Modal Overlay */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .modal-overlay.show { opacity: 1; pointer-events: auto; }
+    .modal { background: var(--bg); border: 1px solid var(--surface-border); border-radius: 12px; width: 600px; max-width: 90%; padding: 2rem; transform: translateY(20px); transition: transform 0.2s; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+    .modal-overlay.show .modal { transform: translateY(0); }
+    .modal h2 { margin-bottom: 1rem; color: #fff; }
+    .modal p { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem; }
+
+    .two-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 0.75rem; }
+
+    @media (max-width: 1100px) {
+      .main { padding: 1.35rem; }
+      .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      h1 { font-size: 1.55rem; }
+      th, td { padding: 0.85rem 0.65rem; }
+    }
+
+    @media (max-width: 860px) {
+      body { flex-direction: column; height: auto; min-height: 100vh; overflow: auto; }
+      .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--surface-border);
+        padding: 1rem;
+        position: sticky;
+        top: 0;
+        z-index: 50;
+      }
+      .sidebar h2 { padding: 0; margin-bottom: 0.7rem; font-size: 1.02rem; }
+      .sidebar-spacer { display: none; }
+      .sidebar-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; }
+      .sidebar-footer { margin-top: 0.5rem; padding-top: 0; }
+      .sidebar-footer .nav-btn { width: 100%; justify-content: center; }
+      .nav-btn { justify-content: center; margin-bottom: 0; font-size: 0.84rem; padding: 0.62rem 0.55rem; gap: 0.4rem; }
+      .main { padding: 1rem; overflow: visible; }
+      .dash-grid { grid-template-columns: 1fr; }
+      .two-col-grid { grid-template-columns: 1fr; }
+      .section-head { flex-direction: column; align-items: flex-start; margin-bottom: 1rem; }
+      .section-head .btn { width: 100%; justify-content: center; }
+      .terminal { height: 260px; }
+      .badge { font-size: 0.7rem; }
+      .toast { left: 12px; right: 12px; bottom: 12px; padding: 0.85rem 1rem; }
+      .modal { padding: 1.15rem; }
+    }
+
+    @media (max-width: 520px) {
+      h1 { font-size: 1.3rem; margin-bottom: 0.9rem; }
+      .btn { width: 100%; justify-content: center; }
+      .btn-sm { width: auto; }
+      th, td { font-size: 0.8rem; }
+      .card { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2><i class="fab fa-instagram"></i> BEY IG DM BOT</h2>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-nav">
+      <button class="nav-btn active" onclick="switchTab('dashboard', this)"><i class="fas fa-chart-line"></i> Dashboard</button>
+      <button class="nav-btn" onclick="switchTab('accounts', this)"><i class="fas fa-users-cog"></i> IG Accounts</button>
+      <button class="nav-btn" onclick="switchTab('targets', this)"><i class="fas fa-crosshairs"></i> Targets & Msgs</button>
+      <button class="nav-btn" onclick="switchTab('settings', this)"><i class="fas fa-sliders-h"></i> Settings</button>
+    </div>
+    <div class="sidebar-footer">
+      <button class="nav-btn logout" onclick="window.location.href='/logout'"><i class="fas fa-right-from-bracket"></i> Logout</button>
+    </div>
+  </div>
+
+  <!-- Main View -->
+  <div class="main">
+    
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="section-head">
+        <h1>Overview</h1>
+        <div id="statusBadge" class="badge badge-idle">STATUS: IDLE</div>
+      </div>
+      
+      <div class="dash-grid">
+        <div class="stat-card">
+          <h3>Total Lifetime DMs</h3>
+          <div class="val" id="lifetimeDms">--</div>
+        </div>
+        <div class="stat-card">
+          <h3>Current Session</h3>
+          <div class="val" id="currentSession">--</div>
+        </div>
+        <div class="stat-card">
+          <h3>Cooldown Status</h3>
+          <div class="val" id="cooldownVal" style="font-size: 1.5rem; color: var(--text-muted)">--</div>
+        </div>
+      </div>
+      
+      <div class="card" style="display: flex; gap: 1rem;">
+        <button id="btnStart" class="btn btn-success" onclick="botCommand('start')" style="flex: 1; justify-content:center"><i class="fas fa-play"></i> START BOT</button>
+        <button id="btnStop" class="btn btn-danger" onclick="botCommand('stop')" style="flex: 1; justify-content:center"><i class="fas fa-stop"></i> STOP BOT</button>
+      </div>
+      
+      <div class="card" style="padding: 0;">
+        <div style="padding: 1rem; border-bottom: 1px solid var(--surface-border); display:flex; justify-content:space-between; align-items:center;">
+          <h3 style="font-size:0.95rem; font-weight:600;"><i class="fas fa-terminal"></i> Live Terminal</h3>
+        </div>
+        <div class="terminal" id="terminalBox">
+          <div class="line">Loading logs...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACCOUNTS -->
+    <div id="tab-accounts" class="tab-content">
+      <div class="section-head">
+        <h1>Instagram Accounts</h1>
+        <button class="btn btn-primary btn-sm" onclick="addAccountRow()"><i class="fas fa-plus"></i> Add Account</button>
+      </div>
+      
+      <div class="card">
+        <div class="table-wrap">
+          <table id="accountsTable">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Password (Optional)</th>
+                <th style="width: 140px;">Cookies</th>
+                <th style="width: 100px;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top: 1rem;">
+          <button class="btn btn-success" onclick="saveAccounts()"><i class="fas fa-save"></i> Save Accounts</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TARGETS -->
+    <div id="tab-targets" class="tab-content">
+      <h1>Targets & Messages</h1>
+      
+      <div class="two-col-grid">
+        <div class="card">
+          <h3 style="margin-bottom: 1rem;"><i class="fas fa-user-tag"></i> Target Models</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Put one username per line. The bot will scrape their posts and followers to send DMs to.</p>
+          <textarea id="modelsTextarea" rows="15" placeholder="model_jane\nfashion_sylva\n..."></textarea>
+          <button class="btn btn-success" style="margin-top: 1rem; width: 100%; justify-content:center" onclick="saveModels()"><i class="fas fa-save"></i> Save Models</button>
+        </div>
+        
+        <div class="card">
+          <h3 style="margin-bottom: 1rem;"><i class="fas fa-comment-alt"></i> Message Templates</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Put one exact message per line. The bot will randomly pick one for each DM sent to avoid spam filters.</p>
+          <textarea id="messagesTextarea" rows="15" placeholder="Hey! Love your profile 🔥\nWould love to work with you! 💅\n..."></textarea>
+          <button class="btn btn-success" style="margin-top: 1rem; width: 100%; justify-content:center" onclick="saveMessages()"><i class="fas fa-save"></i> Save Messages</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="tab-settings" class="tab-content">
+      <div class="section-head">
+        <h1>Bot Settings</h1>
+        <button class="btn btn-success" onclick="saveSettings()"><i class="fas fa-save"></i> Apply Settings</button>
+      </div>
+      
+      <div class="two-col-grid">
+        <!-- Telegram -->
+        <div class="card">
+          <h3 style="margin-bottom: 1.5rem; color:var(--primary);"><i class="fab fa-telegram"></i> Telegram Integration</h3>
+          <div class="form-group">
+            <label>Bot Token (from BotFather)</label>
+            <input type="text" id="set_TELEGRAM_BOT_TOKEN" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11">
+          </div>
+          <div class="form-group">
+            <label>Chat IDs (Comma separated for multiple)</label>
+            <input type="text" id="set_TELEGRAM_CHAT_IDS" placeholder="8592007309, 123456789">
+          </div>
+        </div>
+        
+        <!-- Quotas -->
+        <div class="card">
+          <h3 style="margin-bottom: 1.5rem; color:var(--primary);"><i class="fas fa-chart-bar"></i> DM Limits per Model</h3>
+          <div style="display: flex; gap: 1rem;">
+            <div class="form-group" style="flex:1">
+              <label>Minimum DMs</label>
+              <input type="number" id="set_DM_MIN_PER_MODEL" placeholder="5">
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Maximum DMs</label>
+              <input type="number" id="set_DM_MAX_PER_MODEL" placeholder="10">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Post Age Priority (Hours)</label>
+            <input type="number" id="set_POST_AGE_PRIORITY_HOURS" placeholder="24">
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Bot will ONLY scrape comments from posts newer than this.</div>
+          </div>
+        </div>
+        
+        <!-- Delays -->
+        <div class="card">
+          <h3 style="margin-bottom: 1.5rem; color:var(--primary);"><i class="fas fa-clock"></i> Anti-Spam Delays (Seconds)</h3>
+          <div style="display: flex; gap: 1rem;">
+            <div class="form-group" style="flex:1">
+              <label>Message Delay MIN</label>
+              <input type="number" id="set_DM_DELAY_MIN" placeholder="3">
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Message Delay MAX</label>
+              <input type="number" id="set_DM_DELAY_MAX" placeholder="7">
+            </div>
+          </div>
+          <div style="display: flex; gap: 1rem;">
+            <div class="form-group" style="flex:1">
+              <label>Action Delay MIN (Clicks)</label>
+              <input type="number" id="set_ACTION_DELAY_MIN">
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Action Delay MAX</label>
+              <input type="number" id="set_ACTION_DELAY_MAX">
+            </div>
+          </div>
+        </div>
+        
+        <!-- Cooldown -->
+        <div class="card">
+          <h3 style="margin-bottom: 1.5rem; color:var(--primary);"><i class="fas fa-bed"></i> Session Cooldowns (Minutes)</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">After looping all accounts, bot sleeps for a random time.</p>
+          <div style="display: flex; gap: 1rem;">
+            <div class="form-group" style="flex:1">
+              <label>Cooldown MIN</label>
+              <input type="number" id="set_COOLDOWN_MIN" placeholder="25">
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Cooldown MAX</label>
+              <input type="number" id="set_COOLDOWN_MAX" placeholder="40">
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+  </div>
+
+  <div class="toast" id="toast">Changes Saved Successfully!</div>
+
+  <!-- Cookie Editor Modal -->
+  <div class="modal-overlay" id="cookieModalOverlay">
+    <div class="modal">
+      <h2 id="cookieModalTitle">Edit Cookies</h2>
+      <p>Paste the raw exported JSON cookies (e.g. from EditThisCookie) below. If you supply valid cookies here, the password field is optional!</p>
+      <textarea id="cookieJsonTextarea" rows="10" placeholder='[{"domain": ".instagram.com", "name": "sessionid", "value": "..."}]...' style="font-family: monospace; font-size: 0.8rem; margin-bottom: 1rem;"></textarea>
+      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+        <button class="btn" style="background:var(--surface-border)" onclick="closeCookieModal()">Cancel</button>
+        <button class="btn btn-success" onclick="saveCookieModal()"><i class="fas fa-save"></i> Save Cookies</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let globalAccounts = [];
+    let globalModels = [];
+    let globalMessages = [];
+    let globalSettings = {};
+
+    // ── UI Navigation ──
+    function switchTab(tabId, buttonEl) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tabId).classList.add('active');
+      if (buttonEl) {
+        buttonEl.classList.add('active');
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    // ── API Loads ──
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config');
+        const data = await res.json();
+        
+        // Populate Accounts
+        globalAccounts = data.accounts || [];
+        renderAccounts();
+        
+        // Populate Models
+        globalModels = data.models || [];
+        document.getElementById('modelsTextarea').value = globalModels.join('\n');
+        
+        // Populate Messages
+        globalMessages = data.messages || [];
+        document.getElementById('messagesTextarea').value = globalMessages.join('\n');
+        
+        // Populate Settings
+        globalSettings = data.settings || {};
+        for(let key in globalSettings) {
+          const el = document.getElementById('set_' + key);
+          if (el) {
+            let val = globalSettings[key];
+            if (key === 'TELEGRAM_CHAT_IDS' && Array.isArray(val)) {
+              val = val.join(', ');
+            }
+            el.value = val;
+          }
+        }
+      } catch(e) { console.error("Failed to load config", e); }
+    }
+
+    // ── Accounts Logic ──
+    function renderAccounts() {
+      const tbody = document.querySelector('#accountsTable tbody');
+      tbody.innerHTML = '';
+      globalAccounts.forEach((acc, i) => {
+        tbody.innerHTML += `
+          <tr>
+            <td><input type="text" id="acc_user_${i}" value="${acc.username}"></td>
+            <td><input type="password" id="acc_pass_${i}" value="${acc.password || ''}" placeholder="Leave blank if using Cookies"></td>
+            <td>
+              <button class="btn btn-primary btn-sm" title="Edit Cookies" onclick="openCookieModal('${acc.username}')"><i class="fas fa-cookie-bite"></i> Cookies</button>
+            </td>
+            <td style="display:flex; gap:0.5rem;">
+              <button class="btn btn-danger btn-sm" title="Delete Account" onclick="removeAccount(${i})"><i class="fas fa-trash"></i></button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+    
+    function addAccountRow() {
+      // Sync current DOM values back to array first
+      syncAccountsFromDom();
+      globalAccounts.push({username: "", password: ""});
+      renderAccounts();
+    }
+    
+    function removeAccount(idx) {
+      syncAccountsFromDom();
+      globalAccounts.splice(idx, 1);
+      renderAccounts();
+    }
+    
+    function syncAccountsFromDom() {
+      globalAccounts.forEach((acc, i) => {
+        const u = document.getElementById(`acc_user_${i}`);
+        const p = document.getElementById(`acc_pass_${i}`);
+        if(u) acc.username = u.value;
+        if(p) acc.password = p.value;
+      });
+    }
+
+    async function saveAccounts() {
+      syncAccountsFromDom();
+      // Remove empty rows (allow empty passwords)
+      const cleanAccs = globalAccounts.filter(a => a.username.trim() !== "");
+      await fetch('/api/config/accounts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(cleanAccs)
+      });
+      globalAccounts = cleanAccs;
+      renderAccounts();
+      showToast("Accounts Saved successfully!");
+    }
+
+    // ── Targets Logic ──
+    async function saveModels() {
+      const text = document.getElementById('modelsTextarea').value;
+      const list = text.split('\n').map(x => x.trim()).filter(x => x);
+      await fetch('/api/config/models', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(list)
+      });
+      showToast("Models List Saved successfully!");
+    }
+    
+    async function saveMessages() {
+      const text = document.getElementById('messagesTextarea').value;
+      const list = text.split('\n').map(x => x.trim()).filter(x => x);
+      await fetch('/api/config/messages', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(list)
+      });
+      showToast("Message Templates Saved successfully!");
+    }
+
+    // ── Settings Logic ──
+    async function saveSettings() {
+      // Loop over known DOM inputs that start with set_
+      const inputs = document.querySelectorAll('[id^=set_]');
+      const payload = {...globalSettings}; // keep anything not explicitly bound
+      
+      inputs.forEach(el => {
+        const key = el.id.replace('set_', '');
+        let val = el.value;
+        
+        // Handle types
+        if (el.type === 'number') val = Number(val);
+        else if (key === 'TELEGRAM_CHAT_IDS') {
+          val = val.split(',').map(x => x.trim()).filter(x => x);
+        }
+        
+        payload[key] = val;
+      });
+      
+      await fetch('/api/config/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      showToast("Bot Settings Applied dynamically!");
+    }
+
+    // ── Dashboard Live Stream ──
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const state = await res.json();
+        
+        // Update Stats
+        document.getElementById('lifetimeDms').innerText = state.total_dms_all_time || 0;
+        document.getElementById('currentSession').innerText = '#' + state.current_session;
+        document.getElementById('cooldownVal').innerText = state.status === 'cooldown' ? state.next_run : "--";
+        
+        // Badge
+        const badge = document.getElementById('statusBadge');
+        badge.className = `badge badge-${state.status}`;
+        badge.innerText = `STATUS: ${state.status.toUpperCase()}`;
+        
+        // Buttons
+        const canStart = ['idle', 'stopped'].includes(state.status);
+        document.getElementById('btnStart').style.display = canStart ? 'flex' : 'none';
+        document.getElementById('btnStop').style.display = canStart ? 'none' : 'flex';
+        
+        // Logs
+        const html = state.log_lines.map(l => {
+          let cls = 'info';
+          if(l.includes('✅') || l.includes('success')) cls = 'success';
+          if(l.includes('❌') || l.includes('ERROR')) cls = 'error';
+          if(l.includes('⚠️') || l.includes('WARNING')) cls = 'warn';
+          return `<div class="line ${cls}">${l}</div>`;
+        }).join('');
+        
+        const term = document.getElementById('terminalBox');
+        const wasScrolled = term.scrollHeight - term.scrollTop === term.clientHeight;
+        term.innerHTML = html || '<div class="line info">No logs yet...</div>';
+        if(wasScrolled) term.scrollTop = term.scrollHeight; // Auto-scroll
+        
+      } catch(e){}
+    }
+    
+    async function botCommand(cmd) {
+      await fetch('/' + cmd);
+      setTimeout(fetchStatus, 500); // refresh UI
+    }
+
+    // ── Cookie UI Handlers ──
+    let activeCookieUser = "";
+    async function openCookieModal(username) {
+      if (!username) { alert("Please save the account username first."); return; }
+      activeCookieUser = username;
+      document.getElementById('cookieModalTitle').innerText = `Edit Cookies: ${username}`;
+      document.getElementById('cookieJsonTextarea').value = "Loading...";
+      document.getElementById('cookieModalOverlay').classList.add('show');
+      
+      try {
+        const res = await fetch(`/api/cookies/${username}`);
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('cookieJsonTextarea').value = data.cookies;
+        } else {
+          document.getElementById('cookieJsonTextarea').value = "";
+        }
+      } catch(e) { document.getElementById('cookieJsonTextarea').value = ""; }
+    }
+    
+    function closeCookieModal() {
+      document.getElementById('cookieModalOverlay').classList.remove('show');
+    }
+    
+    async function saveCookieModal() {
+      const val = document.getElementById('cookieJsonTextarea').value;
+      try {
+        const res = await fetch(`/api/cookies/${activeCookieUser}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({cookies: val})
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeCookieModal();
+          showToast(`Cookies saved for ${activeCookieUser}`);
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch(e) { alert("Network error saving cookies."); }
+    }
+
+    // Init
+    loadConfig();
+    fetchStatus();
+    setInterval(fetchStatus, 5000); // 5s log poll
+
+  </script>
+</body>
+</html>

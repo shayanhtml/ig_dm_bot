@@ -5,9 +5,17 @@ import random
 import subprocess
 import re
 import logging
+import ssl
 import undetected_chromedriver as uc
 
 logger = logging.getLogger("model_dm_bot")
+
+# Global SSL Monkey-Patch: heavily bypasses SSL CERTIFICATE_VERIFY_FAILED 
+# meaning undetected-chromedriver can freely download its bin on missing-cert servers.
+try:
+    ssl._create_default_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",

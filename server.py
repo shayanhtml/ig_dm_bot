@@ -7,20 +7,32 @@ import os
 import json
 import time
 import random
+import sqlite3
 import threading
 import logging
+from functools import wraps
 from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from flask import Flask, jsonify, render_template_string
+from flask import Flask, jsonify, render_template, request, redirect, session, url_for
+from werkzeug.security import generate_password_hash, check_password_hash
 from bot import run_bot, setup_logging, load_dm_log
-from config.settings import ACCOUNTS_FILE, MODELS_FILE, DM_LOG_FILE, COOLDOWN_MIN, COOLDOWN_MAX
+from config.settings import ACCOUNTS_FILE, MODELS_FILE, MESSAGES_FILE, DM_LOG_FILE, SETTINGS_FILE, COOLDOWN_MIN, COOLDOWN_MAX, COOKIES_DIR
 
 # ── Config ──
 BOT_LOOP_ENABLED = True
+AUTH_DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "auth.db")
+AUTH_DEFAULT_USERNAME = "beyinstabot"
+AUTH_DEFAULT_PASSWORD = "#beymedia!"
 
 app = Flask(__name__)
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=12)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "beyinstabot-local-secret")
+app.jinja_env.auto_reload = True
 logger = logging.getLogger("model_dm_bot")
 
 # ── Shared State ──
@@ -37,6 +49,79 @@ bot_state = {
 }
 bot_thread = None
 stop_event = threading.Event()
+
+
+# ── Authentication ──
+def get_auth_db_connection():
+  conn = sqlite3.connect(AUTH_DB_FILE)
+  conn.row_factory = sqlite3.Row
+  return conn
+
+
+def init_auth_db():
+  """Create auth DB and ensure the default account exists."""
+  os.makedirs(os.path.dirname(AUTH_DB_FILE), exist_ok=True)
+  conn = get_auth_db_connection()
+  try:
+    conn.execute(
+      """
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL
+      )
+      """
+    )
+
+    password_hash = generate_password_hash(AUTH_DEFAULT_PASSWORD)
+    existing = conn.execute(
+      "SELECT id FROM users WHERE username = ?",
+      (AUTH_DEFAULT_USERNAME,),
+    ).fetchone()
+
+    if existing:
+      conn.execute(
+        "UPDATE users SET password_hash = ? WHERE username = ?",
+        (password_hash, AUTH_DEFAULT_USERNAME),
+      )
+    else:
+      conn.execute(
+        "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+        (AUTH_DEFAULT_USERNAME, password_hash),
+      )
+
+    conn.commit()
+  finally:
+    conn.close()
+
+
+def is_valid_login(username: str, password: str) -> bool:
+  conn = get_auth_db_connection()
+  try:
+    row = conn.execute(
+      "SELECT password_hash FROM users WHERE username = ?",
+      (username,),
+    ).fetchone()
+  finally:
+    conn.close()
+
+  if not row:
+    return False
+  return check_password_hash(row["password_hash"], password)
+
+
+def login_required(route_func):
+  @wraps(route_func)
+  def wrapper(*args, **kwargs):
+    if session.get("authenticated"):
+      return route_func(*args, **kwargs)
+
+    if request.path.startswith("/api/"):
+      return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    return redirect(url_for("login"))
+
+  return wrapper
 
 
 # ── Dashboard HTML ──
@@ -285,7 +370,36 @@ def bot_loop():
 
 
 # ── Flask Routes ──
+@app.route("/login", methods=["GET", "POST"])
+def login():
+  if session.get("authenticated"):
+    return redirect(url_for("dashboard"))
+
+  error = None
+  if request.method == "POST":
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+
+    if is_valid_login(username, password):
+      session.clear()
+      session.permanent = True
+      session["authenticated"] = True
+      session["username"] = username
+      return redirect(url_for("dashboard"))
+
+    error = "Invalid username or password"
+
+  return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+  session.clear()
+  return redirect(url_for("login"))
+
+
 @app.route("/")
+@login_required
 def dashboard():
     dm_log_count = 0
     try:
@@ -295,20 +409,109 @@ def dashboard():
     except Exception:
         pass
 
-    return render_template_string(
-        DASHBOARD_HTML,
-        state=bot_state,
-        cooldown_range=f"{COOLDOWN_MIN}-{COOLDOWN_MAX} min",
-        dm_log_count=dm_log_count,
-    )
+    return render_template("index.html", state=bot_state, cooldown_range=f"{COOLDOWN_MIN}-{COOLDOWN_MAX} min", dm_log_count=dm_log_count)
+
+# ── API ──
+@app.route("/api/config", methods=["GET"])
+@login_required
+def api_get_config():
+    """Retrieve all configuration JSON chunks to populate the UI."""
+    data = {"accounts": [], "models": [], "messages": [], "settings": {}}
+    try:
+        with open(ACCOUNTS_FILE, "r") as f: data["accounts"] = json.load(f)
+        with open(MODELS_FILE, "r") as f: data["models"] = json.load(f)
+        with open(MESSAGES_FILE, "r") as f: data["messages"] = json.load(f)
+        with open(SETTINGS_FILE, "r") as f: data["settings"] = json.load(f)
+    except Exception as e:
+        logger.error(f"Error reading config API: {e}")
+    return jsonify(data)
+
+@app.route("/api/config/<target>", methods=["POST"])
+@login_required
+def api_save_config(target):
+    """Save configuration changes back to disk."""
+    file_map = {
+        "accounts": ACCOUNTS_FILE,
+        "models": MODELS_FILE,
+        "messages": MESSAGES_FILE,
+        "settings": SETTINGS_FILE
+    }
+    target_file = file_map.get(target)
+    if not target_file:
+        return jsonify({"success": False, "error": "Invalid target"}), 400
+        
+    try:
+        payload = request.get_json()
+        with open(target_file, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+            
+        # If settings were updated, force update the in-memory variables safely
+        if target == "settings":
+            import config.settings as s
+            for k, v in payload.items():
+                if hasattr(s, k):
+                    setattr(s, k, v)
+                    
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"Error saving {target}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/api/cookies/<username>", methods=["GET"])
+@login_required
+def api_get_cookies(username):
+    """Retrieve raw cookies JSON for an account if it exists."""
+    cookie_path = os.path.join(COOKIES_DIR, f"{username}.json")
+    if os.path.exists(cookie_path):
+        try:
+            with open(cookie_path, "r", encoding="utf-8") as f:
+                return jsonify({"success": True, "cookies": f.read()})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "cookies": ""})
+
+
+@app.route("/api/cookies/<username>", methods=["POST"])
+@login_required
+def api_save_cookies(username):
+    """Save raw cookies JSON directly to the user's cookies file."""
+    cookie_path = os.path.join(COOKIES_DIR, f"{username}.json")
+    try:
+        payload = request.get_json()
+        cookies_str = payload.get("cookies", "")
+        if not cookies_str.strip():
+            # If empty, delete the file so it forces fresh login
+            if os.path.exists(cookie_path):
+                os.remove(cookie_path)
+        else:
+            # Validate it's json array
+            json.loads(cookies_str)
+            with open(cookie_path, "w", encoding="utf-8") as f:
+                f.write(cookies_str)
+        return jsonify({"success": True})
+    except json.JSONDecodeError:
+        return jsonify({"success": False, "error": "Invalid JSON format"}), 400
+    except Exception as e:
+        logger.error(f"Error saving cookies for {username}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 @app.route("/api/status")
+@login_required
 def api_status():
     return jsonify(bot_state)
 
 
+@app.after_request
+def add_no_cache_headers(response):
+  """Prevent stale dashboard/template content in browser cache."""
+  response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+  response.headers["Pragma"] = "no-cache"
+  response.headers["Expires"] = "0"
+  return response
+
+
 @app.route("/start")
+@login_required
 def start_bot():
     global bot_thread
     if bot_state["status"] in ("idle", "stopped"):
@@ -320,6 +523,7 @@ def start_bot():
 
 
 @app.route("/stop")
+@login_required
 def stop_bot():
     stop_event.set()
     bot_state["status"] = "stopped"
@@ -328,6 +532,8 @@ def stop_bot():
 
 # ── Main ──
 if __name__ == "__main__":
+    init_auth_db()
+
     print("=" * 60)
     print("  INSTAGRAM DM BOT — FLASK SERVER")
     print("=" * 60)
@@ -336,10 +542,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print()
 
-    # Auto-start the bot loop
-    stop_event.clear()
-    bot_thread = threading.Thread(target=bot_loop, daemon=True)
-    bot_thread.start()
-    bot_state["status"] = "running"
+    # Bot will remain idle until started via the web UI dashboard.
+    bot_state["status"] = "idle"
 
     app.run(host="0.0.0.0", port=5000, debug=False)

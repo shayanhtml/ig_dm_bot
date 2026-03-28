@@ -4446,3 +4446,549 @@ Stacktrace:
 2026-03-27 22:07:59 | ERROR   | [Telegram] Failed to send: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000025C5B09C390>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
 2026-03-27 22:07:59 | INFO    | ━━━ Switching to account: @test_user619 ━━━
 2026-03-27 22:07:59 | INFO    | [Browser] Detected Chrome version: 146
+2026-03-28 01:30:49 | INFO    | 🔄 SESSION #1 STARTING
+2026-03-28 01:30:49 | INFO    | ============================================================
+2026-03-28 01:30:49 | INFO    |   INSTAGRAM MODEL DM BOT — STARTING
+2026-03-28 01:30:49 | INFO    | ============================================================
+2026-03-28 01:30:49 | INFO    | Loaded 1 accounts, 2 models, 5 message templates
+2026-03-28 01:30:49 | INFO    | [Telegram] Polling thread started
+2026-03-28 14:01:31 | INFO    | 🔄 SESSION #1 STARTING
+2026-03-28 14:01:31 | INFO    | ============================================================
+2026-03-28 14:01:31 | INFO    |   INSTAGRAM MODEL DM BOT — STARTING
+2026-03-28 14:01:31 | INFO    | ============================================================
+2026-03-28 14:01:31 | INFO    | Loaded 2 accounts, 2 models, 5 message templates
+2026-03-28 14:01:31 | INFO    | [Telegram] Polling thread started
+2026-03-28 14:01:41 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAC0F51D0>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:01:41 | INFO    | ━━━ Switching to account: @testuser1 ━━━
+2026-03-28 14:01:41 | INFO    | [Browser] Detected Chrome version: 146
+2026-03-28 14:01:57 | INFO    | [testuser1] No cookies found, skipping cookie login
+2026-03-28 14:01:57 | INFO    | [testuser1] Logging in with credentials...
+2026-03-28 14:02:02 | INFO    | [testuser1] Navigated to login page, waiting for load...
+2026-03-28 14:02:02 | INFO    | [testuser1] Page loaded, current URL: https://www.instagram.com/accounts/login/
+2026-03-28 14:02:20 | INFO    | [testuser1] Looking for login form...
+2026-03-28 14:02:20 | INFO    | [testuser1] Found username field
+2026-03-28 14:02:20 | INFO    | [testuser1] Found password field
+2026-03-28 14:02:23 | INFO    | [testuser1] Typed username
+2026-03-28 14:02:26 | INFO    | [testuser1] Typed password
+2026-03-28 14:02:29 | INFO    | [testuser1] Submitted login form, waiting for response...
+2026-03-28 14:02:56 | ERROR   | [testuser1] Login error: InvalidSessionIdException: Message: invalid session id: session deleted as the browser has closed the connection
+from disconnected: not connected to DevTools
+  (Session info: chrome=146.0.7680.154); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0x12ccdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0x12ccf24+10c34]
+	undetected_chromedriver!(No symbol) [0x10b2120]
+	undetected_chromedriver!(No symbol) [0x10a108e]
+	undetected_chromedriver!(No symbol) [0x10bfbe9]
+	undetected_chromedriver!(No symbol) [0x112450c]
+	undetected_chromedriver!(No symbol) [0x113a309]
+	undetected_chromedriver!(No symbol) [0x111d8a6]
+	undetected_chromedriver!(No symbol) [0x10f0229]
+	undetected_chromedriver!(No symbol) [0x10f0fe4]
+	undetected_chromedriver!GetHandleVerifier [0x15348b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0x152feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x154e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0x12e5cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0x12ed9fd+3170d]
+	undetected_chromedriver!GetHandleVerifier [0x12d58c8+195d8]
+	undetected_chromedriver!GetHandleVerifier [0x12d5a92+197a2]
+	undetected_chromedriver!GetHandleVerifier [0x12bee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+2026-03-28 14:02:56 | ERROR   | Traceback (most recent call last):
+  File "C:\Users\Sheyan\Desktop\Insta Bot\model-dm-bot\core\auth.py", line 262, in login_with_credentials
+    WebDriverWait(driver, 30).until(
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\support\wait.py", line 129, in until
+    value = method(self._driver)
+            ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Sheyan\Desktop\Insta Bot\model-dm-bot\core\auth.py", line 263, in <lambda>
+    lambda d: "/accounts/login" not in d.current_url
+                                       ^^^^^^^^^^^^^
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\undetected_chromedriver\__init__.py", line 806, in __getattribute__
+    return super().__getattribute__(item)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 587, in current_url
+    return self.execute(Command.GET_CURRENT_URL)["value"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 458, in execute
+    self.error_handler.check_response(response)
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\errorhandler.py", line 232, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.InvalidSessionIdException: Message: invalid session id: session deleted as the browser has closed the connection
+from disconnected: not connected to DevTools
+  (Session info: chrome=146.0.7680.154); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0x12ccdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0x12ccf24+10c34]
+	undetected_chromedriver!(No symbol) [0x10b2120]
+	undetected_chromedriver!(No symbol) [0x10a108e]
+	undetected_chromedriver!(No symbol) [0x10bfbe9]
+	undetected_chromedriver!(No symbol) [0x112450c]
+	undetected_chromedriver!(No symbol) [0x113a309]
+	undetected_chromedriver!(No symbol) [0x111d8a6]
+	undetected_chromedriver!(No symbol) [0x10f0229]
+	undetected_chromedriver!(No symbol) [0x10f0fe4]
+	undetected_chromedriver!GetHandleVerifier [0x15348b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0x152feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x154e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0x12e5cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0x12ed9fd+3170d]
+	undetected_chromedriver!GetHandleVerifier [0x12d58c8+195d8]
+	undetected_chromedriver!GetHandleVerifier [0x12d5a92+197a2]
+	undetected_chromedriver!GetHandleVerifier [0x12bee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+
+2026-03-28 14:02:56 | INFO    | ❌ Error with @testuser1: Message: invalid session id; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0x12ccdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0x12ccf24+10c34]
+	undetected_chromedriver!(No symbol) [0x10b1f5e]
+	undetected_chromedriver!(No symbol) [0x10ef4b7]
+	undetected_chromedriver!(No symbol) [0x111d9c6]
+	undetected_chromedriver!(No symbol) [0x1118e42]
+	undetected_chromedriver!(No symbol) [0x1118462]
+	undetected_chromedriver!(No symbol) [0x108534e]
+	undetected_chromedriver!(No symbol) [0x10858ee]
+	undetected_chromedriver!(No symbol) [0x1085dcd]
+	undetected_chromedriver!GetHandleVerifier [0x15348b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0x152feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x154e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0x12e5cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0x12ed9fd+3170d]
+	undetected_chromedriver!(No symbol) [0x1084ee9]
+	undetected_chromedriver!(No symbol) [0x1084530]
+	undetected_chromedriver!GetHandleVerifier [0x1682e9f+3c6baf]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+2026-03-28 14:03:06 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF289150>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:03:07 | INFO    | ⏳ Waiting 13s before switching accounts...
+2026-03-28 14:03:18 | INFO    | 🔄 SESSION #1 STARTING
+2026-03-28 14:03:18 | INFO    | ============================================================
+2026-03-28 14:03:18 | INFO    |   INSTAGRAM MODEL DM BOT — STARTING
+2026-03-28 14:03:18 | INFO    | ============================================================
+2026-03-28 14:03:18 | INFO    | Loaded 2 accounts, 2 models, 5 message templates
+2026-03-28 14:03:18 | INFO    | [Telegram] Polling thread started
+2026-03-28 14:03:20 | INFO    | ━━━ Switching to account: @testuser2 ━━━
+2026-03-28 14:03:20 | INFO    | [Browser] Detected Chrome version: 146
+2026-03-28 14:03:28 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x000001FCBA1E3F10>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:03:28 | INFO    | ━━━ Switching to account: @testuser1 ━━━
+2026-03-28 14:03:28 | INFO    | [Browser] Detected Chrome version: 146
+2026-03-28 14:03:41 | INFO    | ❌ Failed to create browser for @testuser1: [WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\Sheyan\\appdata\\roaming\\undetected_chromedriver\\undetected\\chromedriver-win32\\chromedriver.exe' -> 'C:\\Users\\Sheyan\\appdata\\roaming\\undetected_chromedriver\\undetected_chromedriver.exe'
+2026-03-28 14:03:41 | INFO    | ⚠️ Check your internet connection — ChromeDriver needs to download.
+2026-03-28 14:03:41 | INFO    | ━━━ Switching to account: @testuser2 ━━━
+2026-03-28 14:03:41 | INFO    | [Browser] Detected Chrome version: 146
+2026-03-28 14:03:54 | INFO    | ❌ Failed to create browser for @testuser2: Message: Service C:\Users\Sheyan\appdata\roaming\undetected_chromedriver\undetected_chromedriver.exe unexpectedly exited. Status code was: 3221225477
+
+2026-03-28 14:03:54 | INFO    | ⚠️ Check your internet connection — ChromeDriver needs to download.
+2026-03-28 14:04:00 | INFO    | [testuser2] No cookies found, skipping cookie login
+2026-03-28 14:04:00 | INFO    | [testuser2] Logging in with credentials...
+2026-03-28 14:04:04 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF2DE990>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:04:04 | INFO    | [Telegram] Polling thread stopped
+2026-03-28 14:04:04 | INFO    | ============================================================
+2026-03-28 14:04:04 | INFO    |   SESSION COMPLETE — 0 DMs sent, 0 models done
+2026-03-28 14:04:04 | INFO    | ============================================================
+2026-03-28 14:04:04 | INFO    | 💤 Cooldown: 28 minutes. Next run at 14:32:04
+2026-03-28 14:04:12 | INFO    | [testuser2] Navigated to login page, waiting for load...
+2026-03-28 14:04:12 | INFO    | [testuser2] Page loaded, current URL: https://www.instagram.com/accounts/login/
+2026-03-28 14:04:28 | INFO    | [testuser2] Looking for login form...
+2026-03-28 14:04:28 | INFO    | [testuser2] Found username field
+2026-03-28 14:04:28 | INFO    | [testuser2] Found password field
+2026-03-28 14:04:31 | INFO    | [testuser2] Typed username
+2026-03-28 14:04:33 | INFO    | [testuser2] Typed password
+2026-03-28 14:04:35 | INFO    | [testuser2] Submitted login form, waiting for response...
+2026-03-28 14:04:35 | ERROR   | [testuser2] Login error: InvalidSessionIdException: Message: invalid session id; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0xfbcdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0xfbcf24+10c34]
+	undetected_chromedriver!(No symbol) [0xda1f5e]
+	undetected_chromedriver!(No symbol) [0xddf4b7]
+	undetected_chromedriver!(No symbol) [0xe0d9c6]
+	undetected_chromedriver!(No symbol) [0xe08e42]
+	undetected_chromedriver!(No symbol) [0xe08462]
+	undetected_chromedriver!(No symbol) [0xd7534e]
+	undetected_chromedriver!(No symbol) [0xd758ee]
+	undetected_chromedriver!(No symbol) [0xd75dcd]
+	undetected_chromedriver!GetHandleVerifier [0x12248b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0x121feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x123e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0xfd5cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0xfdd9fd+3170d]
+	undetected_chromedriver!(No symbol) [0xd74ee9]
+	undetected_chromedriver!(No symbol) [0xd74530]
+	undetected_chromedriver!GetHandleVerifier [0x1372e9f+3c6baf]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+2026-03-28 14:04:35 | ERROR   | Traceback (most recent call last):
+  File "C:\Users\Sheyan\Desktop\Insta Bot\model-dm-bot\core\auth.py", line 262, in login_with_credentials
+    WebDriverWait(driver, 30).until(
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\support\wait.py", line 129, in until
+    value = method(self._driver)
+            ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Sheyan\Desktop\Insta Bot\model-dm-bot\core\auth.py", line 263, in <lambda>
+    lambda d: "/accounts/login" not in d.current_url
+                                       ^^^^^^^^^^^^^
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\undetected_chromedriver\__init__.py", line 806, in __getattribute__
+    return super().__getattribute__(item)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 587, in current_url
+    return self.execute(Command.GET_CURRENT_URL)["value"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 458, in execute
+    self.error_handler.check_response(response)
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\errorhandler.py", line 232, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.InvalidSessionIdException: Message: invalid session id; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0xfbcdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0xfbcf24+10c34]
+	undetected_chromedriver!(No symbol) [0xda1f5e]
+	undetected_chromedriver!(No symbol) [0xddf4b7]
+	undetected_chromedriver!(No symbol) [0xe0d9c6]
+	undetected_chromedriver!(No symbol) [0xe08e42]
+	undetected_chromedriver!(No symbol) [0xe08462]
+	undetected_chromedriver!(No symbol) [0xd7534e]
+	undetected_chromedriver!(No symbol) [0xd758ee]
+	undetected_chromedriver!(No symbol) [0xd75dcd]
+	undetected_chromedriver!GetHandleVerifier [0x12248b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0x121feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x123e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0xfd5cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0xfdd9fd+3170d]
+	undetected_chromedriver!(No symbol) [0xd74ee9]
+	undetected_chromedriver!(No symbol) [0xd74530]
+	undetected_chromedriver!GetHandleVerifier [0x1372e9f+3c6baf]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+
+2026-03-28 14:04:35 | INFO    | ❌ Error with @testuser2: Message: invalid session id; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0xfbcdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0xfbcf24+10c34]
+	undetected_chromedriver!(No symbol) [0xda1f5e]
+	undetected_chromedriver!(No symbol) [0xddf4b7]
+	undetected_chromedriver!(No symbol) [0xe0d9c6]
+	undetected_chromedriver!(No symbol) [0xe08e42]
+	undetected_chromedriver!(No symbol) [0xe08462]
+	undetected_chromedriver!(No symbol) [0xd7534e]
+	undetected_chromedriver!(No symbol) [0xd758ee]
+	undetected_chromedriver!(No symbol) [0xd75dcd]
+	undetected_chromedriver!GetHandleVerifier [0x12248b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0x121feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x123e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0xfd5cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0xfdd9fd+3170d]
+	undetected_chromedriver!(No symbol) [0xd74ee9]
+	undetected_chromedriver!(No symbol) [0xd74530]
+	undetected_chromedriver!GetHandleVerifier [0x1372e9f+3c6baf]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+2026-03-28 14:09:09 | INFO    | 🛑 Bot loop stopped.
+2026-03-28 14:10:40 | INFO    | 🔄 SESSION #1 STARTING
+2026-03-28 14:10:40 | INFO    | ============================================================
+2026-03-28 14:10:40 | INFO    |   INSTAGRAM MODEL DM BOT — STARTING
+2026-03-28 14:10:40 | INFO    | ============================================================
+2026-03-28 14:10:40 | INFO    | Loaded 3 accounts, 2 models, 5 message templates
+2026-03-28 14:10:40 | INFO    | [Telegram] Polling thread started
+2026-03-28 14:10:50 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF29EE50>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:10:50 | INFO    | ━━━ Switching to account: @blankabiletska ━━━
+2026-03-28 14:10:50 | INFO    | [Browser] Detected Chrome version: 146
+2026-03-28 14:11:10 | INFO    | [blankabiletska] Attempting cookie login...
+2026-03-28 14:11:29 | INFO    | ❌ Error with @blankabiletska: Message: no such window: target window already closed
+from unknown error: web view not found
+  (Session info: chrome=146.0.7680.154)
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0xd9cdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0xd9cf24+10c34]
+	undetected_chromedriver!(No symbol) [0xb82120]
+	undetected_chromedriver!(No symbol) [0xb60c53]
+	undetected_chromedriver!(No symbol) [0xbf431b]
+	undetected_chromedriver!(No symbol) [0xc0a309]
+	undetected_chromedriver!(No symbol) [0xbed8a6]
+	undetected_chromedriver!(No symbol) [0xbc0229]
+	undetected_chromedriver!(No symbol) [0xbc0fe4]
+	undetected_chromedriver!GetHandleVerifier [0x10048b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0xfffeb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x101e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0xdb5cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0xdbd9fd+3170d]
+	undetected_chromedriver!GetHandleVerifier [0xda58c8+195d8]
+	undetected_chromedriver!GetHandleVerifier [0xda5a92+197a2]
+	undetected_chromedriver!GetHandleVerifier [0xd8ee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+2026-03-28 14:11:39 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF2F3890>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:11:39 | INFO    | ⏳ Waiting 10s before switching accounts...
+2026-03-28 14:11:49 | INFO    | ━━━ Switching to account: @agatamatwiejczuk ━━━
+2026-03-28 14:11:49 | INFO    | [Browser] Detected Chrome version: 146
+2026-03-28 14:12:12 | INFO    | [agatamatwiejczuk] No cookies found, skipping cookie login
+2026-03-28 14:12:12 | INFO    | [agatamatwiejczuk] Logging in with credentials...
+2026-03-28 14:12:28 | INFO    | [agatamatwiejczuk] Navigated to login page, waiting for load...
+2026-03-28 14:12:28 | INFO    | [agatamatwiejczuk] Page loaded, current URL: https://www.instagram.com/accounts/login/
+2026-03-28 14:12:44 | INFO    | [agatamatwiejczuk] Looking for login form...
+2026-03-28 14:12:44 | INFO    | [agatamatwiejczuk] Found username field
+2026-03-28 14:12:44 | INFO    | [agatamatwiejczuk] Found password field
+2026-03-28 14:12:48 | INFO    | [agatamatwiejczuk] Typed username
+2026-03-28 14:12:51 | INFO    | [agatamatwiejczuk] Typed password
+2026-03-28 14:12:53 | INFO    | [agatamatwiejczuk] Submitted login form, waiting for response...
+2026-03-28 14:12:56 | ERROR   | [agatamatwiejczuk] Login error: InvalidSessionIdException: Message: invalid session id: session deleted as the browser has closed the connection
+from disconnected: not connected to DevTools
+  (Session info: chrome=146.0.7680.154); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0xfbcdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0xfbcf24+10c34]
+	undetected_chromedriver!(No symbol) [0xda2120]
+	undetected_chromedriver!(No symbol) [0xd9108e]
+	undetected_chromedriver!(No symbol) [0xdafbe9]
+	undetected_chromedriver!(No symbol) [0xe1450c]
+	undetected_chromedriver!(No symbol) [0xe2a309]
+	undetected_chromedriver!(No symbol) [0xe0d8a6]
+	undetected_chromedriver!(No symbol) [0xde0229]
+	undetected_chromedriver!(No symbol) [0xde0fe4]
+	undetected_chromedriver!GetHandleVerifier [0x12248b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0x121feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x123e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0xfd5cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0xfdd9fd+3170d]
+	undetected_chromedriver!GetHandleVerifier [0xfc58c8+195d8]
+	undetected_chromedriver!GetHandleVerifier [0xfc5a92+197a2]
+	undetected_chromedriver!GetHandleVerifier [0xfaee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+2026-03-28 14:12:56 | ERROR   | Traceback (most recent call last):
+  File "C:\Users\Sheyan\Desktop\Insta Bot\model-dm-bot\core\auth.py", line 262, in login_with_credentials
+    WebDriverWait(driver, 30).until(
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\support\wait.py", line 129, in until
+    value = method(self._driver)
+            ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Sheyan\Desktop\Insta Bot\model-dm-bot\core\auth.py", line 263, in <lambda>
+    lambda d: "/accounts/login" not in d.current_url
+                                       ^^^^^^^^^^^^^
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\undetected_chromedriver\__init__.py", line 806, in __getattribute__
+    return super().__getattribute__(item)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 587, in current_url
+    return self.execute(Command.GET_CURRENT_URL)["value"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 458, in execute
+    self.error_handler.check_response(response)
+  File "C:\Users\Sheyan\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\errorhandler.py", line 232, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.InvalidSessionIdException: Message: invalid session id: session deleted as the browser has closed the connection
+from disconnected: not connected to DevTools
+  (Session info: chrome=146.0.7680.154); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0xfbcdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0xfbcf24+10c34]
+	undetected_chromedriver!(No symbol) [0xda2120]
+	undetected_chromedriver!(No symbol) [0xd9108e]
+	undetected_chromedriver!(No symbol) [0xdafbe9]
+	undetected_chromedriver!(No symbol) [0xe1450c]
+	undetected_chromedriver!(No symbol) [0xe2a309]
+	undetected_chromedriver!(No symbol) [0xe0d8a6]
+	undetected_chromedriver!(No symbol) [0xde0229]
+	undetected_chromedriver!(No symbol) [0xde0fe4]
+	undetected_chromedriver!GetHandleVerifier [0x12248b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0x121feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x123e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0xfd5cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0xfdd9fd+3170d]
+	undetected_chromedriver!GetHandleVerifier [0xfc58c8+195d8]
+	undetected_chromedriver!GetHandleVerifier [0xfc5a92+197a2]
+	undetected_chromedriver!GetHandleVerifier [0xfaee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+
+2026-03-28 14:12:57 | INFO    | ❌ Error with @agatamatwiejczuk: Message: invalid session id; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#invalidsessionidexception
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0xfbcdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0xfbcf24+10c34]
+	undetected_chromedriver!(No symbol) [0xda1f5e]
+	undetected_chromedriver!(No symbol) [0xddf4b7]
+	undetected_chromedriver!(No symbol) [0xe0d9c6]
+	undetected_chromedriver!(No symbol) [0xe08e42]
+	undetected_chromedriver!(No symbol) [0xe08462]
+	undetected_chromedriver!(No symbol) [0xd7534e]
+	undetected_chromedriver!(No symbol) [0xd758ee]
+	undetected_chromedriver!(No symbol) [0xd75dcd]
+	undetected_chromedriver!GetHandleVerifier [0x12248b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0x121feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x123e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0xfd5cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0xfdd9fd+3170d]
+	undetected_chromedriver!(No symbol) [0xd74ee9]
+	undetected_chromedriver!(No symbol) [0xd74530]
+	undetected_chromedriver!GetHandleVerifier [0x1372e9f+3c6baf]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+2026-03-28 14:13:07 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF259AD0>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:13:07 | INFO    | ⏳ Waiting 19s before switching accounts...
+2026-03-28 14:13:26 | INFO    | ━━━ Switching to account: @rdzanek.magdalena123 ━━━
+2026-03-28 14:13:26 | INFO    | [Browser] Detected Chrome version: 146
+2026-03-28 14:13:47 | INFO    | [rdzanek.magdalena123] No cookies found, skipping cookie login
+2026-03-28 14:13:47 | INFO    | [rdzanek.magdalena123] Logging in with credentials...
+2026-03-28 14:13:53 | INFO    | [rdzanek.magdalena123] Navigated to login page, waiting for load...
+2026-03-28 14:13:53 | ERROR   | [rdzanek.magdalena123] Page load timeout: Message: no such window: target window already closed
+from unknown error: web view not found
+  (Session info: chrome=146.0.7680.154)
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0x51cdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0x51cf24+10c34]
+	undetected_chromedriver!(No symbol) [0x302120]
+	undetected_chromedriver!(No symbol) [0x2e0c53]
+	undetected_chromedriver!(No symbol) [0x37431b]
+	undetected_chromedriver!(No symbol) [0x38a309]
+	undetected_chromedriver!(No symbol) [0x36d8a6]
+	undetected_chromedriver!(No symbol) [0x340229]
+	undetected_chromedriver!(No symbol) [0x340fe4]
+	undetected_chromedriver!GetHandleVerifier [0x7848b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0x77feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x79e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0x535cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0x53d9fd+3170d]
+	undetected_chromedriver!GetHandleVerifier [0x5258c8+195d8]
+	undetected_chromedriver!GetHandleVerifier [0x525a92+197a2]
+	undetected_chromedriver!GetHandleVerifier [0x50ee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+2026-03-28 14:13:53 | INFO    | ❌ Error with @rdzanek.magdalena123: Message: no such window: target window already closed
+from unknown error: web view not found
+  (Session info: chrome=146.0.7680.154)
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0x51cdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0x51cf24+10c34]
+	undetected_chromedriver!(No symbol) [0x302120]
+	undetected_chromedriver!(No symbol) [0x2e0c53]
+	undetected_chromedriver!(No symbol) [0x37431b]
+	undetected_chromedriver!(No symbol) [0x38a309]
+	undetected_chromedriver!(No symbol) [0x36d8a6]
+	undetected_chromedriver!(No symbol) [0x340229]
+	undetected_chromedriver!(No symbol) [0x340fe4]
+	undetected_chromedriver!GetHandleVerifier [0x7848b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0x77feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0x79e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0x535cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0x53d9fd+3170d]
+	undetected_chromedriver!GetHandleVerifier [0x5258c8+195d8]
+	undetected_chromedriver!GetHandleVerifier [0x525a92+197a2]
+	undetected_chromedriver!GetHandleVerifier [0x50ee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+2026-03-28 14:14:03 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF2736D0>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:14:13 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF3109D0>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:14:18 | INFO    | [Telegram] Polling thread stopped
+2026-03-28 14:14:18 | INFO    | ============================================================
+2026-03-28 14:14:18 | INFO    |   SESSION COMPLETE — 0 DMs sent, 0 models done
+2026-03-28 14:14:18 | INFO    | ============================================================
+2026-03-28 14:14:19 | INFO    | 💤 Cooldown: 35 minutes. Next run at 14:49:19
+2026-03-28 14:32:49 | INFO    | 🛑 Bot loop stopped.
+2026-03-28 14:32:59 | INFO    | 🔄 SESSION #1 STARTING
+2026-03-28 14:32:59 | INFO    | ============================================================
+2026-03-28 14:32:59 | INFO    |   INSTAGRAM MODEL DM BOT — STARTING
+2026-03-28 14:32:59 | INFO    | ============================================================
+2026-03-28 14:32:59 | INFO    | Loaded 1 accounts, 2 models, 5 message templates
+2026-03-28 14:32:59 | INFO    | [Telegram] Polling thread started
+2026-03-28 14:33:09 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF327A90>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:33:09 | INFO    | ━━━ Switching to account: @blankabiletska ━━━
+2026-03-28 14:33:09 | INFO    | [Browser] Detected Chrome version: 146
+2026-03-28 14:33:33 | INFO    | [blankabiletska] Attempting cookie login...
+2026-03-28 14:33:37 | INFO    | ❌ Error with @blankabiletska: Message: target frame detached
+  (failed to check if window was closed: disconnected: Unable to receive message from renderer)
+  (Session info: chrome=146.0.7680.165)
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0x9ecdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0x9ecf24+10c34]
+	undetected_chromedriver!(No symbol) [0x7d1f5e]
+	undetected_chromedriver!(No symbol) [0x7c2073]
+	undetected_chromedriver!(No symbol) [0x7c124d]
+	undetected_chromedriver!(No symbol) [0x7dfbe9]
+	undetected_chromedriver!(No symbol) [0x7df118]
+	undetected_chromedriver!(No symbol) [0x85acba]
+	undetected_chromedriver!(No symbol) [0x83d8a6]
+	undetected_chromedriver!(No symbol) [0x810229]
+	undetected_chromedriver!(No symbol) [0x810fe4]
+	undetected_chromedriver!GetHandleVerifier [0xc548b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0xc4feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0xc6e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0xa05cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0xa0d9fd+3170d]
+	undetected_chromedriver!GetHandleVerifier [0x9f58c8+195d8]
+	undetected_chromedriver!GetHandleVerifier [0x9f5a92+197a2]
+	undetected_chromedriver!GetHandleVerifier [0x9dee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+2026-03-28 14:33:47 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF25B390>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:33:57 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF253C50>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:34:02 | INFO    | [Telegram] Polling thread stopped
+2026-03-28 14:34:02 | INFO    | ============================================================
+2026-03-28 14:34:02 | INFO    |   SESSION COMPLETE — 0 DMs sent, 0 models done
+2026-03-28 14:34:02 | INFO    | ============================================================
+2026-03-28 14:34:02 | INFO    | 🛑 Bot loop stopped.
+2026-03-28 14:35:48 | INFO    | 🔄 SESSION #1 STARTING
+2026-03-28 14:35:48 | INFO    | ============================================================
+2026-03-28 14:35:48 | INFO    |   INSTAGRAM MODEL DM BOT — STARTING
+2026-03-28 14:35:48 | INFO    | ============================================================
+2026-03-28 14:35:48 | INFO    | Loaded 1 accounts, 2 models, 5 message templates
+2026-03-28 14:35:48 | INFO    | [Telegram] Polling thread started
+2026-03-28 14:35:58 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF2F7B90>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:35:58 | INFO    | ━━━ Switching to account: @blankabiletska ━━━
+2026-03-28 14:35:58 | INFO    | [Browser] Detected Chrome version: 146
+2026-03-28 14:36:22 | INFO    | [blankabiletska] Attempting cookie login...
+2026-03-28 14:36:47 | INFO    | ❌ Error with @blankabiletska: Message: no such window: target window already closed
+from unknown error: web view not found
+  (Session info: chrome=146.0.7680.165)
+Stacktrace:
+	undetected_chromedriver!GetHandleVerifier [0xb0cdf3+10b03]
+	undetected_chromedriver!GetHandleVerifier [0xb0cf24+10c34]
+	undetected_chromedriver!(No symbol) [0x8f2120]
+	undetected_chromedriver!(No symbol) [0x8d0c53]
+	undetected_chromedriver!(No symbol) [0x96431b]
+	undetected_chromedriver!(No symbol) [0x97a309]
+	undetected_chromedriver!(No symbol) [0x95d8a6]
+	undetected_chromedriver!(No symbol) [0x930229]
+	undetected_chromedriver!(No symbol) [0x930fe4]
+	undetected_chromedriver!GetHandleVerifier [0xd748b9+2785c9]
+	undetected_chromedriver!GetHandleVerifier [0xd6feb5+273bc5]
+	undetected_chromedriver!GetHandleVerifier [0xd8e06b+291d7b]
+	undetected_chromedriver!GetHandleVerifier [0xb25cc8+299d8]
+	undetected_chromedriver!GetHandleVerifier [0xb2d9fd+3170d]
+	undetected_chromedriver!GetHandleVerifier [0xb158c8+195d8]
+	undetected_chromedriver!GetHandleVerifier [0xb15a92+197a2]
+	undetected_chromedriver!GetHandleVerifier [0xafee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x75a9fcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x771082ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7710827e+ee]
+
+2026-03-28 14:36:57 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF272A90>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:37:07 | ERROR   | [Telegram] Failed to send to 8592007309: HTTPSConnectionPool(host='api.telegram.org', port=443): Max retries exceeded with url: /bot8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE/sendMessage (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000026BAF2F1150>, 'Connection to api.telegram.org timed out. (connect timeout=10)'))
+2026-03-28 14:37:12 | INFO    | [Telegram] Polling thread stopped
+2026-03-28 14:37:12 | INFO    | ============================================================
+2026-03-28 14:37:12 | INFO    |   SESSION COMPLETE — 0 DMs sent, 0 models done
+2026-03-28 14:37:12 | INFO    | ============================================================
+2026-03-28 14:37:12 | INFO    | 🛑 Bot loop stopped.
