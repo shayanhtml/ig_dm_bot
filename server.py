@@ -524,6 +524,7 @@ def api_save_config(target):
             payload = {} if target in ("settings", "model_message_map") else []
         user_ctx = _current_user_context()
         is_master = user_ctx["role"] == "master"
+        can_edit_targets = user_ctx["role"] in ("master", "employee")
 
         if target == "settings":
             if not is_master:
@@ -572,6 +573,8 @@ def api_save_config(target):
               employees_only=True,
             )
         elif target == "models":
+          if not can_edit_targets:
+            return jsonify({"success": False, "error": "Not allowed to update models"}), 403
             if not isinstance(payload, list):
                 return jsonify({"success": False, "error": "Models payload must be a list"}), 400
             clean_models = []
@@ -592,9 +595,11 @@ def api_save_config(target):
                 "model_count": len(clean_models),
                 "model_names": ", ".join(clean_models[:10]) + (" ..." if len(clean_models) > 10 else ""),
               },
-              employees_only=True,
+              employees_only=False,
             )
         elif target == "messages":
+            if not can_edit_targets:
+                return jsonify({"success": False, "error": "Not allowed to update messages"}), 403
             if not isinstance(payload, list):
                 return jsonify({"success": False, "error": "Messages payload must be a list"}), 400
             clean_messages = [str(msg or "").strip() for msg in payload if str(msg or "").strip()]
@@ -610,9 +615,11 @@ def api_save_config(target):
                 "message_count": len(clean_messages),
                 "message_sample": sample_messages,
               },
-              employees_only=True,
+              employees_only=False,
             )
         elif target == "model_message_map":
+            if not can_edit_targets:
+                return jsonify({"success": False, "error": "Not allowed to update model-specific messages"}), 403
             if not isinstance(payload, dict):
                 return jsonify({"success": False, "error": "MODEL_MESSAGE_MAP payload must be an object"}), 400
             actor_username = str(user_ctx.get("username") or "unknown")

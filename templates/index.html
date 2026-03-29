@@ -369,7 +369,7 @@
             <h3 style="margin-bottom: 0.4rem;"><i class="fas fa-user-pen"></i> Model-Specific Targets & Messages</h3>
             <p style="font-size: 0.85rem; color: var(--text-muted);">Add each target model with custom messages. This section is now the main source for target models and DM templates.</p>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="addModelMessageRow()"><i class="fas fa-plus"></i> Add Model Set</button>
+          <button id="btnAddModelSet" class="btn btn-primary btn-sm" onclick="addModelMessageRow()"><i class="fas fa-plus"></i> Add Model Set</button>
         </div>
 
         <datalist id="modelsDatalist"></datalist>
@@ -391,7 +391,7 @@
         </div>
 
         <div style="display:flex; justify-content:flex-end; margin-top: 1rem;">
-          <button class="btn btn-success" onclick="saveModelMessages()"><i class="fas fa-save"></i> Save Targets & Messages</button>
+          <button id="btnSaveModelMessages" class="btn btn-success" onclick="saveModelMessages()"><i class="fas fa-save"></i> Save Targets & Messages</button>
         </div>
       </div>
     </div>
@@ -743,9 +743,14 @@
       const navTargets = document.getElementById('navTargets');
       const navSettings = document.getElementById('navSettings');
       const modelMessageMetaHeader = document.getElementById('modelMessageMetaHeader');
+      const btnAddModelSet = document.getElementById('btnAddModelSet');
+      const btnSaveModelMessages = document.getElementById('btnSaveModelMessages');
+      const canEditTargets = canManageTargets();
       if (navTargets) navTargets.style.display = '';
       if (navSettings) navSettings.style.display = globalIsMaster ? '' : 'none';
       if (modelMessageMetaHeader) modelMessageMetaHeader.style.display = globalIsMaster ? '' : 'none';
+      if (btnAddModelSet) btnAddModelSet.style.display = canEditTargets ? '' : 'none';
+      if (btnSaveModelMessages) btnSaveModelMessages.style.display = canEditTargets ? '' : 'none';
 
       if (!globalIsMaster) {
         globalEmployeeActivity = [];
@@ -777,6 +782,11 @@
 
     function parseMessageLines(raw) {
       return String(raw || '').split('\n').map(x => x.trim()).filter(x => x);
+    }
+
+    function canManageTargets() {
+      const role = String(globalCurrentUser.role || '').toLowerCase();
+      return role === 'master' || role === 'employee';
     }
 
     function getModelMessageMeta(modelName) {
@@ -1643,18 +1653,33 @@
     }
 
     function addModelMessageRow() {
+      if (!canManageTargets()) {
+        showError('You do not have permission to edit targets and messages');
+        return;
+      }
+
       syncModelMessagesFromDom();
       globalModelMessages.push({ model: '', messages: [] });
       renderModelMessages();
     }
 
     function removeModelMessageRow(idx) {
+      if (!canManageTargets()) {
+        showError('You do not have permission to edit targets and messages');
+        return;
+      }
+
       syncModelMessagesFromDom();
       globalModelMessages.splice(idx, 1);
       renderModelMessages();
     }
 
     async function saveModelMessages() {
+      if (!canManageTargets()) {
+        showError('You do not have permission to save targets and messages');
+        return;
+      }
+
       syncModelMessagesFromDom();
 
       const normalizedRows = [];
