@@ -844,44 +844,44 @@ def api_employee_activity():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-    @app.route("/api/activity/all", methods=["GET"])
-    @login_required
-    @master_required
-    def api_all_activity():
-      """Get all dashboard activity for the last N hours (default: 24)."""
-      try:
+@app.route("/api/activity/all", methods=["GET"])
+@login_required
+@master_required
+def api_all_activity():
+    """Get all dashboard activity for the last N hours (default: 24)."""
+    try:
         limit_raw = request.args.get("limit", "500")
         hours_raw = request.args.get("hours", "24")
 
         try:
-          limit = int(limit_raw)
+            limit = int(limit_raw)
         except Exception:
-          limit = 500
+            limit = 500
 
         try:
-          hours = int(hours_raw)
+            hours = int(hours_raw)
         except Exception:
-          hours = 24
+            hours = 24
 
         logs = database.get_activity_logs_recent_hours(hours=hours, limit=limit, employees_only=False)
 
         day_counts = {}
         for row in logs:
-          day_key = str(row.get("created_at") or "").strip()[:10] or "-"
-          day_counts[day_key] = day_counts.get(day_key, 0) + 1
+            day_key = str(row.get("created_at") or "").strip()[:10] or "-"
+            day_counts[day_key] = day_counts.get(day_key, 0) + 1
 
         by_day = [
-          {"day": day, "count": day_counts[day]}
-          for day in sorted(day_counts.keys(), reverse=True)
+            {"day": day, "count": day_counts[day]}
+            for day in sorted(day_counts.keys(), reverse=True)
         ]
 
         return jsonify({
-          "success": True,
-          "logs": logs,
-          "by_day": by_day,
-          "hours": hours,
+            "success": True,
+            "logs": logs,
+            "by_day": by_day,
+            "hours": hours,
         })
-      except Exception as e:
+    except Exception as e:
         logger.error(f"Error loading all activity: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
