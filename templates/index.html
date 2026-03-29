@@ -316,7 +316,7 @@
             <thead>
               <tr>
                 <th>Username</th>
-                <th>Password (Optional)</th>
+                <th>Password (Required)</th>
                 <th id="accountsOwnerHeader" style="width: 140px; display:none;">Owner</th>
                 <th style="width: 140px;">Cookies</th>
                 <th style="width: 100px;">Action</th>
@@ -804,7 +804,11 @@
         return;
       }
 
-      if (!Array.isArray(globalEmployeeActivity) || !globalEmployeeActivity.length) {
+      const activityLogs = (Array.isArray(globalAllActivity) && globalAllActivity.length)
+        ? globalAllActivity
+        : globalEmployeeActivity;
+
+      if (!Array.isArray(activityLogs) || !activityLogs.length) {
         return;
       }
 
@@ -822,7 +826,7 @@
       let fallbackActor = '';
       let fallbackTime = '';
 
-      globalEmployeeActivity.forEach(item => {
+      activityLogs.forEach(item => {
         if (String(item.action || '').trim() !== 'update_model_message_map') {
           return;
         }
@@ -1026,6 +1030,11 @@
         globalAllActivity = Array.isArray(data.logs) ? data.logs : [];
         globalAllActivityByDay = Array.isArray(data.by_day) ? data.by_day : [];
         renderAllActivity();
+
+        if (globalIsMaster && globalModelMessages.length) {
+          backfillModelMessageMetaFromActivity();
+          renderModelMessages();
+        }
       } catch (e) {
         console.error('Failed to load all activity', e);
       }
@@ -1210,7 +1219,7 @@
         tbody.innerHTML += `
           <tr style="${rowStyle}">
             <td><input type="text" id="acc_user_${i}" value="${safeUser}" ${disabledAttr}></td>
-            <td><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="${isReadonlyQueue ? 'Managed by another employee' : 'Leave blank if using Cookies'}" ${disabledAttr}></td>
+            <td><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="${isReadonlyQueue ? 'Managed by another employee' : 'Required password'}" ${disabledAttr}></td>
             ${ownerCell}
             <td>
               ${cookiesCell}
@@ -1262,7 +1271,7 @@
 
     async function saveAccounts() {
       syncAccountsFromDom();
-      // Remove empty rows (allow empty passwords)
+      // Remove empty rows, then enforce required password for each saved account.
       const editableAccounts = globalIsMaster
         ? globalAccounts
         : globalAccounts.filter(a => !a.shared_readonly);
@@ -1271,11 +1280,19 @@
         .filter(a => a.username.trim() !== "")
         .map(a => ({
           username: a.username.trim(),
-          password: a.password || '',
+          password: String(a.password || '').trim(),
           owner_username: a.owner_username || globalCurrentUser.username || 'master',
           cookies_raw: a.cookies_raw || '',
           cookies_touched: !!a.cookies_touched,
         }));
+
+      const missingPasswordUsers = cleanAccs
+        .filter(a => !a.password)
+        .map(a => a.username);
+      if (missingPasswordUsers.length) {
+        showError(`Password is required for: ${missingPasswordUsers.join(', ')}`);
+        return;
+      }
 
       const accountsPayload = cleanAccs.map(a => ({
         username: a.username,

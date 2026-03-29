@@ -518,16 +518,42 @@ def api_save_config(target):
         elif target == "accounts":
             if not isinstance(payload, list):
                 return jsonify({"success": False, "error": "Accounts payload must be a list"}), 400
+
+            clean_accounts = []
+            for idx, raw_acc in enumerate(payload):
+                if not isinstance(raw_acc, dict):
+                    return jsonify({"success": False, "error": f"Invalid account entry at index {idx}"}), 400
+
+                username = str(raw_acc.get("username", "")).strip()
+                if not username:
+                    continue
+
+                password = str(raw_acc.get("password", "")).strip()
+                if not password:
+                    return jsonify({
+                        "success": False,
+                        "error": f"Password is required for account '{username}'",
+                    }), 400
+
+                account_entry = {
+                    "username": username,
+                    "password": password,
+                }
+                if is_master:
+                    account_entry["owner_username"] = str(raw_acc.get("owner_username", "")).strip().lower() or "master"
+
+                clean_accounts.append(account_entry)
+
             if is_master:
-                database.save_accounts(payload, include_all=True)
+                database.save_accounts(clean_accounts, include_all=True)
             else:
-                database.save_accounts(payload, owner_username=user_ctx["username"], include_all=False)
+                database.save_accounts(clean_accounts, owner_username=user_ctx["username"], include_all=False)
             _log_actor_action(
               "update_accounts",
               target_type="config",
               target_value="accounts",
               details={
-                "account_count": len(payload) if isinstance(payload, list) else 0,
+                "account_count": len(clean_accounts),
               },
               employees_only=True,
             )
@@ -644,7 +670,7 @@ def api_save_config(target):
                     "message_count": total_messages,
                     "model_names": ", ".join(model_names[:10]) + (" ..." if len(model_names) > 10 else ""),
                 },
-                employees_only=True,
+                    employees_only=False,
             )
             return jsonify({
                 "success": True,
