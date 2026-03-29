@@ -8,29 +8,29 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
   <style>
     :root {
-      --bg: #0f172a;
-      --surface: #1e293b;
-      --surface-soft: #182538;
-      --surface-border: #334155;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --primary: #3b82f6;
-      --primary-hover: #2563eb;
-      --primary-soft: rgba(59, 130, 246, 0.22);
-      --success: #10b981;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --gradient: linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
-      --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.25);
+      --bg: #000000;
+      --surface: #292929;
+      --surface-soft: #1f1f1f;
+      --surface-border: #3c3c3c;
+      --text: #f5f5f5;
+      --text-muted: #b8b8b8;
+      --primary: #D89B02;
+      --primary-hover: #eab739;
+      --primary-soft: rgba(216, 155, 2, 0.22);
+      --success: #D89B02;
+      --danger: #292929;
+      --warning: #D89B02;
+      --gradient: linear-gradient(135deg, #D89B02 0%, #f0ba2f 55%, #d18d00 100%);
+      --focus-ring: 0 0 0 3px rgba(216, 155, 2, 0.25);
     }
     
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Manrope', sans-serif; }
     
     body {
       background:
-        radial-gradient(1100px 500px at -10% -20%, rgba(59,130,246,0.18), transparent 60%),
-        radial-gradient(900px 500px at 120% 110%, rgba(16,185,129,0.16), transparent 60%),
-        var(--bg);
+        radial-gradient(1100px 500px at -10% -20%, rgba(216,155,2,0.2), transparent 60%),
+        radial-gradient(900px 500px at 120% 110%, rgba(41,41,41,0.55), transparent 60%),
+        linear-gradient(160deg, #000000 0%, #0b0b0b 45%, #141414 100%);
       color: var(--text);
       display: flex;
       height: 100vh;
@@ -39,16 +39,16 @@
     }
     
     /* Sidebar */
-    .sidebar { width: 260px; background: rgba(11, 17, 32, 0.9); padding: 1.75rem 1rem; border-right: 1px solid var(--surface-border); display: flex; flex-direction: column; backdrop-filter: blur(10px); }
+    .sidebar { width: 260px; background: rgba(0, 0, 0, 0.88); padding: 1.75rem 1rem; border-right: 1px solid var(--surface-border); display: flex; flex-direction: column; backdrop-filter: blur(10px); }
     .sidebar h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 1.2rem; padding: 0 1rem; background: var(--gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: flex; align-items: center; gap: 0.5rem; }
     .sidebar-spacer { margin-bottom: 1rem; }
     .sidebar-nav { display: flex; flex-direction: column; gap: 0.25rem; }
     .sidebar-footer { margin-top: auto; padding-top: 1rem; }
     .nav-btn { background: transparent; color: var(--text-muted); border: none; padding: 0.75rem 1rem; border-radius: 10px; text-align: left; font-size: 0.95rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.75rem; transition: all 0.2s; margin-bottom: 0.25rem; }
     .nav-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-    .nav-btn.active { background: linear-gradient(135deg, var(--primary), #0ea5e9); color: white; box-shadow: 0 8px 20px -12px rgba(14, 165, 233, 0.9); }
-    .nav-btn.logout { color: #fecaca; border: 1px solid rgba(239, 68, 68, 0.28); }
-    .nav-btn.logout:hover { background: rgba(127, 29, 29, 0.28); color: #fee2e2; }
+    .nav-btn.active { background: linear-gradient(135deg, var(--primary), #f0ba2f); color: #111; box-shadow: 0 8px 20px -12px rgba(216, 155, 2, 0.55); }
+    .nav-btn.logout { color: var(--primary); border: 1px solid rgba(216, 155, 2, 0.45); }
+    .nav-btn.logout:hover { background: rgba(216, 155, 2, 0.14); color: #f3c24d; }
     
     /* Main Content */
     .main { flex: 1; overflow-y: auto; padding: 2rem 2.5rem; position: relative; }
@@ -59,34 +59,35 @@
     h1 { font-size: 1.8rem; font-weight: 600; margin-bottom: 1.5rem; color: #fff; }
     
     /* Cards & Form elements */
-    .card { background: linear-gradient(180deg, rgba(27, 38, 58, 0.95), rgba(23, 33, 50, 0.95)); border: 1px solid var(--surface-border); border-radius: 14px; padding: 1.35rem; margin-bottom: 1.25rem; box-shadow: 0 14px 30px -20px rgba(0, 0, 0, 0.75); }
+    .card { background: linear-gradient(180deg, rgba(41, 41, 41, 0.95), rgba(18, 18, 18, 0.98)); border: 1px solid var(--surface-border); border-radius: 14px; padding: 1.35rem; margin-bottom: 1.25rem; box-shadow: 0 14px 30px -20px rgba(0, 0, 0, 0.75); }
     .form-group { margin-bottom: 1rem; }
     .form-group label { display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); margin-bottom: 0.5rem; }
-    input, textarea, select { width: 100%; background: #0f172a; border: 1px solid var(--surface-border); border-radius: 8px; padding: 0.72rem 0.78rem; color: var(--text); font-size: 0.95rem; transition: border 0.2s, box-shadow 0.2s, transform 0.2s; }
+    input, textarea, select { width: 100%; background: #101010; border: 1px solid var(--surface-border); border-radius: 8px; padding: 0.72rem 0.78rem; color: var(--text); font-size: 0.95rem; transition: border 0.2s, box-shadow 0.2s, transform 0.2s; }
     input:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--focus-ring); }
     textarea { resize: vertical; min-height: 120px; font-family: inherit; }
     
-    .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border: 1px solid transparent; border-radius: 9px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: all 0.2s; color: white; }
+    .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border: 1px solid rgba(216, 155, 2, 0.2); border-radius: 9px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: all 0.2s; color: #111; }
     .btn-primary { background: var(--primary); }
     .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
     .btn-success { background: var(--success); }
-    .btn-success:hover { background: #059669; transform: translateY(-1px); }
+    .btn-success:hover { background: var(--primary-hover); transform: translateY(-1px); }
     .btn-danger { background: var(--danger); }
-    .btn-danger:hover { background: #dc2626; transform: translateY(-1px); }
+    .btn-danger { color: var(--primary); border-color: rgba(216, 155, 2, 0.45); }
+    .btn-danger:hover { background: #3a3a3a; color: #f3c24d; transform: translateY(-1px); }
     .btn-sm { padding: 0.45rem 0.78rem; font-size: 0.8rem; border-radius: 6px; }
     
     /* Dashboard specific */
     .dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-    .stat-card { background: linear-gradient(180deg, rgba(31, 46, 70, 0.9), rgba(25, 36, 55, 0.95)); border: 1px solid var(--surface-border); border-radius: 12px; padding: 1.5rem; text-align: center; }
+    .stat-card { background: linear-gradient(180deg, rgba(38, 38, 38, 0.95), rgba(16, 16, 16, 0.95)); border: 1px solid var(--surface-border); border-radius: 12px; padding: 1.5rem; text-align: center; }
     .stat-card h3 { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
     .stat-card .val { font-size: 2rem; font-weight: 600; color: #fff; }
     
-    .terminal { background: #070b14; border: 1px solid #1e293b; border-radius: 12px; height: 350px; overflow-y: auto; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: #e2e8f0; }
+    .terminal { background: #050505; border: 1px solid #3a3a3a; border-radius: 12px; height: 350px; overflow-y: auto; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: #e2e8f0; }
     .terminal .line { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
     .log-success { color: var(--success); }
     .log-error { color: var(--danger); }
     .log-warn { color: var(--warning); }
-    .log-info { color: #94a3b8; }
+    .log-info { color: #c5c5c5; }
 
     /* Tables */
     .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -96,19 +97,19 @@
     tr:last-child td { border-bottom: none; }
 
     ::-webkit-scrollbar { width: 10px; height: 10px; }
-    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
-    ::-webkit-scrollbar-thumb { background: #2b3d58; border-radius: 999px; }
-    ::-webkit-scrollbar-thumb:hover { background: #375073; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.65); }
+    ::-webkit-scrollbar-thumb { background: #444444; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #5e5e5e; }
     
     /* Toast */
-    .toast { position: fixed; bottom: 20px; right: 20px; background: var(--success); color: white; padding: 1rem 2rem; border-radius: 8px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: translateY(100px); opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 999; }
+    .toast { position: fixed; bottom: 20px; right: 20px; background: var(--success); color: #111; padding: 1rem 2rem; border-radius: 8px; font-weight: 600; box-shadow: 0 8px 20px rgba(216,155,2,0.2); transform: translateY(100px); opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 999; }
     .toast.show { transform: translateY(0); opacity: 1; }
     
     /* Badges */
     .badge { padding: 0.25rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-    .badge-running { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
-    .badge-stopped, .badge-idle { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
-    .badge-cooldown { background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.4); }
+    .badge-running { background: rgba(216, 155, 2, 0.22); color: #f3c24d; border: 1px solid rgba(216, 155, 2, 0.45); }
+    .badge-stopped, .badge-idle { background: rgba(41, 41, 41, 0.9); color: #d4d4d4; border: 1px solid rgba(216, 155, 2, 0.32); }
+    .badge-cooldown { background: rgba(216, 155, 2, 0.12); color: #eab739; border: 1px solid rgba(216, 155, 2, 0.35); }
 
     /* Modal Overlay */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
@@ -172,12 +173,16 @@
     <h2><i class="fab fa-instagram"></i> BEY IG DM BOT</h2>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-nav">
-      <button class="nav-btn active" onclick="switchTab('dashboard', this)"><i class="fas fa-chart-line"></i> Dashboard</button>
-      <button class="nav-btn" onclick="switchTab('accounts', this)"><i class="fas fa-users-cog"></i> IG Accounts</button>
-      <button class="nav-btn" onclick="switchTab('targets', this)"><i class="fas fa-crosshairs"></i> Targets & Msgs</button>
-      <button class="nav-btn" onclick="switchTab('settings', this)"><i class="fas fa-sliders-h"></i> Settings</button>
+      {% if current_user and current_user.role == 'master' %}
+      <button id="navDashboard" class="nav-btn active" onclick="switchTab('dashboard', this)"><i class="fas fa-chart-line"></i> Dashboard</button>
+      <button id="navAllActivity" class="nav-btn" onclick="switchTab('all-activity', this)"><i class="fas fa-database"></i> All Activity</button>
+      {% endif %}
+      <button id="navAccounts" class="nav-btn {% if not current_user or current_user.role != 'master' %}active{% endif %}" onclick="switchTab('accounts', this)"><i class="fas fa-users-cog"></i> IG Accounts</button>
+      <button id="navTargets" class="nav-btn" onclick="switchTab('targets', this)"><i class="fas fa-crosshairs"></i> Targets & Msgs</button>
+      <button id="navSettings" class="nav-btn" onclick="switchTab('settings', this)"><i class="fas fa-sliders-h"></i> Settings</button>
     </div>
     <div class="sidebar-footer">
+      <div id="currentUserPill" style="margin-bottom:0.6rem; padding:0.55rem 0.7rem; border:1px solid var(--surface-border); border-radius:8px; color:var(--text-muted); font-size:0.78rem; text-align:center;">USER: -</div>
       <button class="nav-btn logout" onclick="window.location.href='/logout'"><i class="fas fa-right-from-bracket"></i> Logout</button>
     </div>
   </div>
@@ -186,6 +191,7 @@
   <div class="main">
     
     <!-- DASHBOARD -->
+    {% if current_user and current_user.role == 'master' %}
     <div id="tab-dashboard" class="tab-content active">
       <div class="section-head">
         <h1>Overview</h1>
@@ -220,10 +226,85 @@
           <div class="line">Loading logs...</div>
         </div>
       </div>
+
+      <div id="employeeActivityCard" class="card" style="display:none;">
+        <div class="section-head" style="margin-bottom: 0.75rem;">
+          <h3 style="font-size:0.95rem; font-weight:600; margin:0;"><i class="fas fa-history"></i> Employee Activity</h3>
+          <button class="btn btn-primary btn-sm" onclick="loadEmployeeActivity()"><i class="fas fa-rotate"></i> Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table id="employeeActivityTable" style="margin-bottom:0;">
+            <thead>
+              <tr>
+                <th style="width: 190px;">Time</th>
+                <th style="width: 140px;">Employee</th>
+                <th style="width: 170px;">Action</th>
+                <th style="width: 170px;">Target</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="5" style="color: var(--text-muted); font-size:0.85rem;">No employee activity yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
+    {% endif %}
+
+    {% if current_user and current_user.role == 'master' %}
+    <div id="tab-all-activity" class="tab-content">
+      <div class="section-head" style="margin-bottom: 0.75rem;">
+        <h1><i class="fas fa-database"></i> All Activity (Last 24 Hours)</h1>
+        <button class="btn btn-primary btn-sm" onclick="loadAllActivity()"><i class="fas fa-rotate"></i> Refresh</button>
+      </div>
+
+      <div id="allActivityCard" class="card">
+        <div class="table-wrap" style="margin-bottom: 0.75rem;">
+          <table id="allActivityByDayTable" style="margin-bottom:0;">
+            <thead>
+              <tr>
+                <th style="width: 180px;">Day</th>
+                <th style="width: 120px;">Events</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="2" style="color: var(--text-muted); font-size:0.85rem;">No 24-hour activity summary yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-wrap">
+          <table id="allActivityTable" style="margin-bottom:0;">
+            <thead>
+              <tr>
+                <th style="width: 190px;">Time</th>
+                <th style="width: 130px;">Day</th>
+                <th style="width: 140px;">User</th>
+                <th style="width: 110px;">Role</th>
+                <th style="width: 170px;">Action</th>
+                <th style="width: 170px;">Target</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="7" style="color: var(--text-muted); font-size:0.85rem;">No activity in the last 24 hours.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
     <!-- ACCOUNTS -->
-    <div id="tab-accounts" class="tab-content">
+    <div id="tab-accounts" class="tab-content {% if not current_user or current_user.role != 'master' %}active{% endif %}">
       <div class="section-head">
         <h1>Instagram Accounts</h1>
         <button class="btn btn-primary btn-sm" onclick="addAccountRow()"><i class="fas fa-plus"></i> Add Account</button>
@@ -236,6 +317,7 @@
               <tr>
                 <th>Username</th>
                 <th>Password (Optional)</th>
+                <th id="accountsOwnerHeader" style="width: 140px; display:none;">Owner</th>
                 <th style="width: 140px;">Cookies</th>
                 <th style="width: 100px;">Action</th>
               </tr>
@@ -254,20 +336,36 @@
     <!-- TARGETS -->
     <div id="tab-targets" class="tab-content">
       <h1>Targets & Messages</h1>
-      
-      <div class="two-col-grid">
-        <div class="card">
-          <h3 style="margin-bottom: 1rem;"><i class="fas fa-user-tag"></i> Target Models</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Put one username per line. The bot will scrape their posts and followers to send DMs to.</p>
-          <textarea id="modelsTextarea" rows="15" placeholder="model_jane\nfashion_sylva\n..."></textarea>
-          <button class="btn btn-success" style="margin-top: 1rem; width: 100%; justify-content:center" onclick="saveModels()"><i class="fas fa-save"></i> Save Models</button>
+
+      <div class="card">
+        <div class="section-head" style="margin-bottom: 1rem;">
+          <div>
+            <h3 style="margin-bottom: 0.4rem;"><i class="fas fa-user-pen"></i> Model-Specific Targets & Messages</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Add each target model with custom messages. This section is now the main source for target models and DM templates.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="addModelMessageRow()"><i class="fas fa-plus"></i> Add Model Set</button>
         </div>
-        
-        <div class="card">
-          <h3 style="margin-bottom: 1rem;"><i class="fas fa-comment-alt"></i> Message Templates</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Put one exact message per line. The bot will randomly pick one for each DM sent to avoid spam filters.</p>
-          <textarea id="messagesTextarea" rows="15" placeholder="Hey! Love your profile 🔥\nWould love to work with you! 💅\n..."></textarea>
-          <button class="btn btn-success" style="margin-top: 1rem; width: 100%; justify-content:center" onclick="saveMessages()"><i class="fas fa-save"></i> Save Messages</button>
+
+        <datalist id="modelsDatalist"></datalist>
+
+        <div class="table-wrap">
+          <table id="modelMessagesTable">
+            <thead>
+              <tr>
+                <th style="width: 220px;">Model Username</th>
+                <th>Custom Messages (One Per Line)</th>
+                <th id="modelMessageMetaHeader" style="width: 220px; display:none;">Updated By</th>
+                <th style="width: 100px;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-top: 1rem;">
+          <button class="btn btn-success" onclick="saveModelMessages()"><i class="fas fa-save"></i> Save Targets & Messages</button>
         </div>
       </div>
     </div>
@@ -280,6 +378,37 @@
       </div>
       
       <div class="two-col-grid">
+        <!-- Dashboard Users (Master only) -->
+        <div class="card" id="userManagementCard" style="display:none;">
+          <h3 style="margin-bottom: 1rem; color:var(--primary);"><i class="fas fa-user-shield"></i> Employee Logins (Master)</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Create separate employee dashboards so each person only edits their own Instagram accounts.</p>
+
+          <div class="table-wrap" style="margin-bottom: 1rem;">
+            <table id="usersTable">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Role</th>
+                  <th style="width: 280px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="form-group">
+            <label>New Employee Username</label>
+            <input type="text" id="newEmployeeUsername" placeholder="employee_name">
+          </div>
+          <div class="form-group">
+            <label>New Employee Password</label>
+            <input type="password" id="newEmployeePassword" placeholder="Minimum 4 characters">
+          </div>
+          <button class="btn btn-success" style="width: 100%; justify-content:center" onclick="createEmployeeUser()"><i class="fas fa-user-plus"></i> Create Employee Login</button>
+        </div>
+
         <!-- Telegram -->
         <div class="card">
           <h3 style="margin-bottom: 1.5rem; color:var(--primary);"><i class="fab fa-telegram"></i> Telegram Integration</h3>
@@ -374,17 +503,120 @@
     </div>
   </div>
 
+  <!-- User Edit Modal -->
+  <div class="modal-overlay" id="userEditModalOverlay">
+    <div class="modal">
+      <h2 id="userEditModalTitle">Edit Dashboard User</h2>
+      <p>Change username and password. Leave password fields empty to keep current password.</p>
+
+      <div class="form-group">
+        <label>Current Username</label>
+        <input type="text" id="userEditCurrentUsername" disabled>
+      </div>
+
+      <div class="form-group">
+        <label>New Username</label>
+        <input type="text" id="userEditNewUsername" placeholder="new_username">
+      </div>
+
+      <div class="form-group">
+        <label>New Password (Optional)</label>
+        <input type="password" id="userEditNewPassword" placeholder="Minimum 4 characters">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label>Confirm New Password</label>
+        <input type="password" id="userEditConfirmPassword" placeholder="Re-enter new password">
+      </div>
+
+      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+        <button class="btn" style="background:var(--surface-border); color: var(--text);" onclick="closeUserEditModal()">Cancel</button>
+        <button class="btn btn-success" onclick="saveUserEditModal()"><i class="fas fa-save"></i> Save User</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Message Popup -->
+  <div class="modal-overlay" id="messageModalOverlay">
+    <div class="modal" style="max-width: 520px;">
+      <h2 id="messageModalTitle">Notice</h2>
+      <p id="messageModalText">Message</p>
+      <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+        <button class="btn btn-primary" onclick="closeMessageModal()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Popup -->
+  <div class="modal-overlay" id="confirmModalOverlay">
+    <div class="modal" style="max-width: 520px;">
+      <h2 id="confirmModalTitle">Confirm</h2>
+      <p id="confirmModalText">Are you sure?</p>
+      <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
+        <button class="btn" style="background:var(--surface-border); color: var(--text);" onclick="resolveConfirmModal(false)">Cancel</button>
+        <button id="confirmModalConfirmBtn" class="btn btn-danger" onclick="resolveConfirmModal(true)">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset Password Popup -->
+  <div class="modal-overlay" id="resetPasswordModalOverlay">
+    <div class="modal" style="max-width: 540px;">
+      <h2 id="resetPasswordModalTitle">Reset Password</h2>
+      <p>Set a new password for this user.</p>
+
+      <div class="form-group">
+        <label>New Password</label>
+        <input type="password" id="resetPasswordInput" placeholder="Minimum 4 characters">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label>Confirm Password</label>
+        <input type="password" id="resetPasswordConfirmInput" placeholder="Re-enter password">
+      </div>
+
+      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+        <button class="btn" style="background:var(--surface-border); color: var(--text);" onclick="closeResetPasswordModal()">Cancel</button>
+        <button class="btn btn-success" onclick="saveResetPasswordModal()"><i class="fas fa-save"></i> Update Password</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     let globalAccounts = [];
     let globalModels = [];
     let globalMessages = [];
+    let globalModelMessages = [];
+    let globalModelMessageMeta = {};
     let globalSettings = {};
+    let globalUsers = [];
+    let globalCurrentUser = {username: '', role: 'employee'};
+    let globalIsMaster = false;
+    let globalEmployeeActivity = [];
+    let globalAllActivity = [];
+    let globalAllActivityByDay = [];
+    let globalQueueAccounts = [];
+    let activeEditUser = '';
+    let activeCookieUser = "";
+    let activeCookieRowIndex = -1;
+    let activeResetPasswordUser = '';
+    let confirmModalResolver = null;
 
     // ── UI Navigation ──
     function switchTab(tabId, buttonEl) {
+      if (!globalIsMaster && (tabId === 'dashboard' || tabId === 'all-activity')) {
+        tabId = 'accounts';
+        buttonEl = document.getElementById('navAccounts');
+      }
+
+      const targetTab = document.getElementById('tab-' + tabId);
+      if (!targetTab) {
+        return;
+      }
+
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-      document.getElementById('tab-' + tabId).classList.add('active');
+      targetTab.classList.add('active');
       if (buttonEl) {
         buttonEl.classList.add('active');
       }
@@ -397,26 +629,535 @@
       setTimeout(() => t.classList.remove('show'), 3000);
     }
 
+    function showMessageModal(message, title = 'Notice') {
+      const titleEl = document.getElementById('messageModalTitle');
+      const textEl = document.getElementById('messageModalText');
+      if (titleEl) titleEl.innerText = title;
+      if (textEl) textEl.innerText = message || 'Request failed';
+      document.getElementById('messageModalOverlay').classList.add('show');
+    }
+
+    function closeMessageModal() {
+      document.getElementById('messageModalOverlay').classList.remove('show');
+    }
+
+    function showError(msg) {
+      showMessageModal(msg || 'Request failed', 'Error');
+    }
+
+    function confirmModal(message, title = 'Confirm', confirmLabel = 'Confirm') {
+      const titleEl = document.getElementById('confirmModalTitle');
+      const textEl = document.getElementById('confirmModalText');
+      const btnEl = document.getElementById('confirmModalConfirmBtn');
+
+      if (titleEl) titleEl.innerText = title;
+      if (textEl) textEl.innerText = message || 'Are you sure?';
+      if (btnEl) btnEl.innerText = confirmLabel;
+
+      document.getElementById('confirmModalOverlay').classList.add('show');
+
+      return new Promise(resolve => {
+        confirmModalResolver = resolve;
+      });
+    }
+
+    function resolveConfirmModal(value) {
+      document.getElementById('confirmModalOverlay').classList.remove('show');
+      if (confirmModalResolver) {
+        const resolve = confirmModalResolver;
+        confirmModalResolver = null;
+        resolve(!!value);
+      }
+    }
+
+    async function apiJson(url, options = {}) {
+      const res = await fetch(url, options);
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (e) {}
+
+      if (!res.ok || data.success === false) {
+        const err = (data && data.error) ? data.error : `Request failed (${res.status})`;
+        throw new Error(err);
+      }
+      return data;
+    }
+
+    function renderCurrentUserPill() {
+      const pill = document.getElementById('currentUserPill');
+      if (!pill) return;
+      const roleLabel = globalIsMaster ? 'MASTER' : 'EMPLOYEE';
+      pill.innerText = `${roleLabel}: ${globalCurrentUser.username || '-'}`;
+    }
+
+    function applyRoleBasedUi() {
+      const navDashboard = document.getElementById('navDashboard');
+      const tabDashboard = document.getElementById('tab-dashboard');
+      const navAllActivity = document.getElementById('navAllActivity');
+      const tabAllActivity = document.getElementById('tab-all-activity');
+
+      if (navDashboard) navDashboard.style.display = globalIsMaster ? '' : 'none';
+      if (tabDashboard) tabDashboard.style.display = globalIsMaster ? '' : 'none';
+      if (navAllActivity) navAllActivity.style.display = globalIsMaster ? '' : 'none';
+      if (tabAllActivity) tabAllActivity.style.display = globalIsMaster ? '' : 'none';
+
+      const ownerHeader = document.getElementById('accountsOwnerHeader');
+      if (ownerHeader) ownerHeader.style.display = globalIsMaster ? '' : 'none';
+
+      const userCard = document.getElementById('userManagementCard');
+      if (userCard) userCard.style.display = globalIsMaster ? '' : 'none';
+
+      const employeeActivityCard = document.getElementById('employeeActivityCard');
+      if (employeeActivityCard) employeeActivityCard.style.display = globalIsMaster ? '' : 'none';
+
+      const allActivityCard = document.getElementById('allActivityCard');
+      if (allActivityCard) allActivityCard.style.display = globalIsMaster ? '' : 'none';
+
+      const navTargets = document.getElementById('navTargets');
+      const navSettings = document.getElementById('navSettings');
+      const modelMessageMetaHeader = document.getElementById('modelMessageMetaHeader');
+      if (navTargets) navTargets.style.display = '';
+      if (navSettings) navSettings.style.display = globalIsMaster ? '' : 'none';
+      if (modelMessageMetaHeader) modelMessageMetaHeader.style.display = globalIsMaster ? '' : 'none';
+
+      if (!globalIsMaster) {
+        globalEmployeeActivity = [];
+        globalAllActivity = [];
+        globalAllActivityByDay = [];
+        renderEmployeeActivity();
+        renderAllActivity();
+
+        const active = document.querySelector('.nav-btn.active');
+        if (active && (active.id === 'navDashboard' || active.id === 'navAllActivity' || active.id === 'navSettings')) {
+          const accountsBtn = document.getElementById('navAccounts');
+          if (accountsBtn) switchTab('accounts', accountsBtn);
+        }
+      }
+    }
+
+    function escapeHtml(text) {
+      return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function normalizeModelKey(value) {
+      return String(value || '').trim().replace(/^@+/, '').toLowerCase();
+    }
+
+    function parseMessageLines(raw) {
+      return String(raw || '').split('\n').map(x => x.trim()).filter(x => x);
+    }
+
+    function getModelMessageMeta(modelName) {
+      const key = normalizeModelKey(modelName);
+      if (!key) return null;
+      const raw = globalModelMessageMeta[key];
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        return null;
+      }
+      return raw;
+    }
+
+    function formatModelMessageMeta(modelName) {
+      const meta = getModelMessageMeta(modelName);
+      if (!meta) return '-';
+
+      const by = String(meta.updated_by || meta.created_by || '').trim();
+      const whenRaw = String(meta.updated_at || meta.created_at || '').trim();
+      const when = whenRaw ? formatActivityTime(whenRaw) : '';
+
+      if (by && when && when !== '-') {
+        return `${by} (${when})`;
+      }
+      if (by) {
+        return by;
+      }
+      if (when && when !== '-') {
+        return when;
+      }
+      return '-';
+    }
+
+    function parseModelNamesFromActivityDetails(details) {
+      if (!details || typeof details !== 'object' || Array.isArray(details)) {
+        return [];
+      }
+
+      const raw = String(details.model_names || '').trim();
+      if (!raw) {
+        return [];
+      }
+
+      return raw
+        .split(',')
+        .map(part => normalizeModelKey(String(part || '').trim().replace(/\.\.\.$/, '')))
+        .filter(Boolean);
+    }
+
+    function backfillModelMessageMetaFromActivity() {
+      if (!globalIsMaster) {
+        return;
+      }
+
+      if (!Array.isArray(globalEmployeeActivity) || !globalEmployeeActivity.length) {
+        return;
+      }
+
+      const missingKeys = new Set(
+        globalModelMessages
+          .map(entry => normalizeModelKey(entry.model || ''))
+          .filter(Boolean)
+          .filter(modelKey => !getModelMessageMeta(modelKey))
+      );
+
+      if (!missingKeys.size) {
+        return;
+      }
+
+      let fallbackActor = '';
+      let fallbackTime = '';
+
+      globalEmployeeActivity.forEach(item => {
+        if (String(item.action || '').trim() !== 'update_model_message_map') {
+          return;
+        }
+
+        const actor = String(item.actor_username || '').trim();
+        const when = String(item.created_at || '').trim();
+
+        if (!fallbackActor && actor) {
+          fallbackActor = actor;
+          fallbackTime = when;
+        }
+
+        const modelKeys = parseModelNamesFromActivityDetails(item.details || {});
+        modelKeys.forEach(modelKey => {
+          if (!missingKeys.has(modelKey)) {
+            return;
+          }
+
+          globalModelMessageMeta[modelKey] = {
+            created_by: actor || fallbackActor || 'unknown',
+            created_at: when || fallbackTime || '',
+            updated_by: actor || fallbackActor || 'unknown',
+            updated_at: when || fallbackTime || '',
+          };
+          missingKeys.delete(modelKey);
+        });
+      });
+
+      if (missingKeys.size && fallbackActor) {
+        missingKeys.forEach(modelKey => {
+          globalModelMessageMeta[modelKey] = {
+            created_by: fallbackActor,
+            created_at: fallbackTime || '',
+            updated_by: fallbackActor,
+            updated_at: fallbackTime || '',
+          };
+        });
+      }
+    }
+
+    function renderModelsDatalist() {
+      const datalist = document.getElementById('modelsDatalist');
+      if (!datalist) return;
+      datalist.innerHTML = globalModels
+        .map(model => `<option value="${escapeHtml(String(model).replace(/^@+/, ''))}"></option>`)
+        .join('');
+    }
+
+    function formatActivityTime(raw) {
+      if (!raw) return '-';
+      const dt = new Date(raw);
+      if (Number.isNaN(dt.getTime())) return String(raw);
+      return dt.toLocaleString();
+    }
+
+    function formatActivityDay(raw) {
+      if (!raw) return '-';
+      const dt = new Date(raw);
+      if (!Number.isNaN(dt.getTime())) {
+        return dt.toLocaleDateString();
+      }
+      const text = String(raw);
+      return text.slice(0, 10) || text;
+    }
+
+    function formatActivityDetails(details) {
+      if (details === null || details === undefined) return '-';
+      if (typeof details === 'string') return details || '-';
+      if (Array.isArray(details)) {
+        return details.map(x => String(x)).join(', ') || '-';
+      }
+      if (typeof details === 'object') {
+        const parts = Object.entries(details).map(([k, v]) => `${k}=${String(v)}`);
+        const joined = parts.join(', ');
+        return joined.length > 120 ? `${joined.slice(0, 117)}...` : (joined || '-');
+      }
+      return String(details);
+    }
+
+    function renderEmployeeActivity() {
+      const tbody = document.querySelector('#employeeActivityTable tbody');
+      if (!tbody) return;
+
+      if (!globalIsMaster) {
+        tbody.innerHTML = '';
+        return;
+      }
+
+      if (!globalEmployeeActivity.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color: var(--text-muted); font-size:0.85rem;">No employee activity yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = globalEmployeeActivity.map(item => {
+        const when = escapeHtml(formatActivityTime(item.created_at));
+        const actor = escapeHtml(item.actor_username || '-');
+        const action = escapeHtml(String(item.action || '-').replace(/_/g, ' '));
+        const targetRaw = [item.target_type || '', item.target_value || ''].filter(Boolean).join(': ');
+        const target = escapeHtml(targetRaw || '-');
+        const details = escapeHtml(formatActivityDetails(item.details));
+
+        return `
+          <tr>
+            <td>${when}</td>
+            <td>${actor}</td>
+            <td>${action}</td>
+            <td>${target}</td>
+            <td>${details}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderAllActivity() {
+      const detailTbody = document.querySelector('#allActivityTable tbody');
+      const dayTbody = document.querySelector('#allActivityByDayTable tbody');
+      if (!detailTbody || !dayTbody) return;
+
+      if (!globalIsMaster) {
+        detailTbody.innerHTML = '';
+        dayTbody.innerHTML = '';
+        return;
+      }
+
+      const summaryRows = Array.isArray(globalAllActivityByDay) ? globalAllActivityByDay : [];
+      if (!summaryRows.length) {
+        dayTbody.innerHTML = '<tr><td colspan="2" style="color: var(--text-muted); font-size:0.85rem;">No 24-hour activity summary yet.</td></tr>';
+      } else {
+        dayTbody.innerHTML = summaryRows.map(item => {
+          const day = escapeHtml(String(item.day || '-'));
+          const count = escapeHtml(String(item.count || 0));
+          return `
+            <tr>
+              <td>${day}</td>
+              <td>${count}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      if (!Array.isArray(globalAllActivity) || !globalAllActivity.length) {
+        detailTbody.innerHTML = '<tr><td colspan="7" style="color: var(--text-muted); font-size:0.85rem;">No activity in the last 24 hours.</td></tr>';
+        return;
+      }
+
+      detailTbody.innerHTML = globalAllActivity.map(item => {
+        const when = escapeHtml(formatActivityTime(item.created_at));
+        const day = escapeHtml(formatActivityDay(item.created_at));
+        const actor = escapeHtml(item.actor_username || '-');
+        const role = escapeHtml(String(item.actor_role || '-').toUpperCase());
+        const action = escapeHtml(String(item.action || '-').replace(/_/g, ' '));
+        const targetRaw = [item.target_type || '', item.target_value || ''].filter(Boolean).join(': ');
+        const target = escapeHtml(targetRaw || '-');
+        const details = escapeHtml(formatActivityDetails(item.details));
+
+        return `
+          <tr>
+            <td>${when}</td>
+            <td>${day}</td>
+            <td>${actor}</td>
+            <td>${role}</td>
+            <td>${action}</td>
+            <td>${target}</td>
+            <td>${details}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function loadEmployeeActivity() {
+      if (!globalIsMaster) {
+        globalEmployeeActivity = [];
+        renderEmployeeActivity();
+        return;
+      }
+
+      try {
+        const data = await apiJson('/api/activity/employee?limit=150');
+        globalEmployeeActivity = data.logs || [];
+        renderEmployeeActivity();
+
+        if (globalIsMaster && globalModelMessages.length) {
+          backfillModelMessageMetaFromActivity();
+          renderModelMessages();
+        }
+      } catch (e) {
+        console.error('Failed to load employee activity', e);
+      }
+    }
+
+    async function loadAllActivity() {
+      if (!globalIsMaster) {
+        globalAllActivity = [];
+        globalAllActivityByDay = [];
+        renderAllActivity();
+        return;
+      }
+
+      try {
+        const data = await apiJson('/api/activity/all?hours=24&limit=500');
+        globalAllActivity = Array.isArray(data.logs) ? data.logs : [];
+        globalAllActivityByDay = Array.isArray(data.by_day) ? data.by_day : [];
+        renderAllActivity();
+      } catch (e) {
+        console.error('Failed to load all activity', e);
+      }
+    }
+
+    function mergeEmployeeQueueIntoAccounts() {
+      if (globalIsMaster) {
+        return;
+      }
+
+      const ownedAccounts = globalAccounts.map(acc => ({
+        ...acc,
+        shared_readonly: false,
+      }));
+
+      const seen = new Set(
+        ownedAccounts
+          .map(acc => normalizeModelKey(acc.username || ''))
+          .filter(Boolean)
+      );
+
+      (globalQueueAccounts || []).forEach(item => {
+        const username = String(item.username || '').trim();
+        if (!username) {
+          return;
+        }
+
+        const key = normalizeModelKey(username);
+        if (seen.has(key)) {
+          return;
+        }
+
+        seen.add(key);
+        ownedAccounts.push({
+          username,
+          password: '',
+          owner_username: item.owner_username || '',
+          cookies_raw: '',
+          cookies_touched: false,
+          shared_readonly: true,
+        });
+      });
+
+      globalAccounts = ownedAccounts;
+    }
+
     // ── API Loads ──
     async function loadConfig() {
       try {
-        const res = await fetch('/api/config');
-        const data = await res.json();
+        const data = await apiJson('/api/config');
+
+        globalCurrentUser = data.current_user || {username: '', role: 'employee'};
+        globalIsMaster = globalCurrentUser.role === 'master';
+        globalUsers = globalIsMaster ? (data.users || []) : [];
+        renderCurrentUserPill();
+        applyRoleBasedUi();
+        renderUsers();
+        await loadEmployeeActivity();
+        await loadAllActivity();
         
         // Populate Accounts
-        globalAccounts = data.accounts || [];
+        globalAccounts = (data.accounts || []).map(acc => ({
+          ...acc,
+          cookies_raw: acc.cookies_raw || '',
+          cookies_touched: false,
+          shared_readonly: false,
+        }));
+
+        globalQueueAccounts = Array.isArray(data.accounts_queue) ? data.accounts_queue : [];
+        mergeEmployeeQueueIntoAccounts();
         renderAccounts();
         
         // Populate Models
         globalModels = data.models || [];
-        document.getElementById('modelsTextarea').value = globalModels.join('\n');
+        const modelsTextarea = document.getElementById('modelsTextarea');
+        if (modelsTextarea) {
+          modelsTextarea.value = globalModels.join('\n');
+        }
+        renderModelsDatalist();
         
         // Populate Messages
         globalMessages = data.messages || [];
-        document.getElementById('messagesTextarea').value = globalMessages.join('\n');
+        const messagesTextarea = document.getElementById('messagesTextarea');
+        if (messagesTextarea) {
+          messagesTextarea.value = globalMessages.join('\n');
+        }
         
         // Populate Settings
         globalSettings = data.settings || {};
+        globalModelMessages = [];
+        globalModelMessageMeta = {};
+
+        const rawModelMeta = globalSettings.MODEL_MESSAGE_META || {};
+        if (rawModelMeta && typeof rawModelMeta === 'object' && !Array.isArray(rawModelMeta)) {
+          Object.keys(rawModelMeta).forEach(modelKey => {
+            const key = normalizeModelKey(modelKey);
+            if (!key) {
+              return;
+            }
+
+            const meta = rawModelMeta[modelKey];
+            if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+              return;
+            }
+
+            globalModelMessageMeta[key] = {
+              created_by: String(meta.created_by || '').trim(),
+              created_at: String(meta.created_at || '').trim(),
+              updated_by: String(meta.updated_by || '').trim(),
+              updated_at: String(meta.updated_at || '').trim(),
+            };
+          });
+        }
+
+        const rawModelMap = globalSettings.MODEL_MESSAGE_MAP || {};
+        if (rawModelMap && typeof rawModelMap === 'object' && !Array.isArray(rawModelMap)) {
+          Object.keys(rawModelMap).forEach(modelKey => {
+            const cleanModel = String(modelKey || '').trim().replace(/^@+/, '');
+            const cleanMessages = Array.isArray(rawModelMap[modelKey])
+              ? rawModelMap[modelKey].map(x => String(x || '').trim()).filter(x => x)
+              : [];
+
+            if (cleanModel && cleanMessages.length) {
+              globalModelMessages.push({ model: cleanModel, messages: cleanMessages });
+            }
+          });
+
+          globalModelMessages.sort((a, b) => a.model.localeCompare(b.model));
+        }
+
+        backfillModelMessageMetaFromActivity();
+
         for(let key in globalSettings) {
           const el = document.getElementById('set_' + key);
           if (el) {
@@ -427,23 +1168,55 @@
             el.value = val;
           }
         }
-      } catch(e) { console.error("Failed to load config", e); }
+
+        renderModelMessages();
+      } catch(e) {
+        console.error("Failed to load config", e);
+        showError(e.message || "Failed to load dashboard configuration");
+      }
     }
 
     // ── Accounts Logic ──
     function renderAccounts() {
       const tbody = document.querySelector('#accountsTable tbody');
       tbody.innerHTML = '';
+
+      if (!globalAccounts.length) {
+        const cols = globalIsMaster ? 5 : 4;
+        tbody.innerHTML = `<tr><td colspan="${cols}" style="color: var(--text-muted); font-size:0.85rem;">No accounts added yet.</td></tr>`;
+        return;
+      }
+
       globalAccounts.forEach((acc, i) => {
+        const isReadonlyQueue = !globalIsMaster && !!acc.shared_readonly;
+        const safeUser = escapeHtml(acc.username || '');
+        const safePass = escapeHtml(isReadonlyQueue ? '********' : (acc.password || ''));
+        const safeOwner = escapeHtml(acc.owner_username || globalCurrentUser.username || 'master');
+        const ownerCell = globalIsMaster
+          ? `<td><span class="badge" style="background:rgba(216,155,2,0.16); border:1px solid rgba(216,155,2,0.38); color:#f3c24d;">${safeOwner}</span></td>`
+          : '';
+
+        const cookiesCell = isReadonlyQueue
+          ? `<span class="badge" style="background:rgba(216,155,2,0.12); border:1px solid rgba(216,155,2,0.3); color:#f3c24d;">Queue</span>`
+          : `<button class="btn btn-primary btn-sm" title="Edit Cookies" onclick="openCookieModalFromRow(${i})"><i class="fas fa-cookie-bite"></i> Cookies</button>`;
+
+        const actionCell = isReadonlyQueue
+          ? `<span style="font-size:0.8rem; color: var(--text-muted);">Read-only</span>`
+          : `<button class="btn btn-danger btn-sm" title="Delete Account" onclick="removeAccount(${i})"><i class="fas fa-trash"></i></button>`;
+
+        const disabledAttr = isReadonlyQueue ? 'disabled' : '';
+        const rowStyle = isReadonlyQueue ? 'opacity:0.82;' : '';
+
         tbody.innerHTML += `
-          <tr>
-            <td><input type="text" id="acc_user_${i}" value="${acc.username}"></td>
-            <td><input type="password" id="acc_pass_${i}" value="${acc.password || ''}" placeholder="Leave blank if using Cookies"></td>
+          <tr style="${rowStyle}">
+            <td><input type="text" id="acc_user_${i}" value="${safeUser}" ${disabledAttr}></td>
+            <td><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="${isReadonlyQueue ? 'Managed by another employee' : 'Leave blank if using Cookies'}" ${disabledAttr}></td>
+            ${ownerCell}
             <td>
-              <button class="btn btn-primary btn-sm" title="Edit Cookies" onclick="openCookieModal('${acc.username}')"><i class="fas fa-cookie-bite"></i> Cookies</button>
+              ${cookiesCell}
             </td>
             <td style="display:flex; gap:0.5rem;">
-              <button class="btn btn-danger btn-sm" title="Delete Account" onclick="removeAccount(${i})"><i class="fas fa-trash"></i></button>
+              ${actionCell}
             </td>
           </tr>
         `;
@@ -453,60 +1226,472 @@
     function addAccountRow() {
       // Sync current DOM values back to array first
       syncAccountsFromDom();
-      globalAccounts.push({username: "", password: ""});
+      globalAccounts.push({
+        username: "",
+        password: "",
+        owner_username: globalCurrentUser.username || 'master',
+        cookies_raw: '',
+        cookies_touched: false,
+        shared_readonly: false,
+      });
       renderAccounts();
     }
     
     function removeAccount(idx) {
       syncAccountsFromDom();
+      if (!globalIsMaster && globalAccounts[idx] && globalAccounts[idx].shared_readonly) {
+        showError('Queued accounts from other employees are read-only');
+        return;
+      }
       globalAccounts.splice(idx, 1);
       renderAccounts();
     }
     
     function syncAccountsFromDom() {
       globalAccounts.forEach((acc, i) => {
+        if (!globalIsMaster && acc.shared_readonly) {
+          return;
+        }
         const u = document.getElementById(`acc_user_${i}`);
         const p = document.getElementById(`acc_pass_${i}`);
         if(u) acc.username = u.value;
         if(p) acc.password = p.value;
+        acc.owner_username = acc.owner_username || globalCurrentUser.username || 'master';
       });
     }
 
     async function saveAccounts() {
       syncAccountsFromDom();
       // Remove empty rows (allow empty passwords)
-      const cleanAccs = globalAccounts.filter(a => a.username.trim() !== "");
-      await fetch('/api/config/accounts', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(cleanAccs)
+      const editableAccounts = globalIsMaster
+        ? globalAccounts
+        : globalAccounts.filter(a => !a.shared_readonly);
+
+      const cleanAccs = editableAccounts
+        .filter(a => a.username.trim() !== "")
+        .map(a => ({
+          username: a.username.trim(),
+          password: a.password || '',
+          owner_username: a.owner_username || globalCurrentUser.username || 'master',
+          cookies_raw: a.cookies_raw || '',
+          cookies_touched: !!a.cookies_touched,
+        }));
+
+      const accountsPayload = cleanAccs.map(a => ({
+        username: a.username,
+        password: a.password,
+        owner_username: a.owner_username,
+      }));
+
+      try {
+        await apiJson('/api/config/accounts', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(accountsPayload)
+        });
+
+        const cookieFailures = [];
+        for (const acc of cleanAccs) {
+          if (!acc.cookies_touched) continue;
+          try {
+            await apiJson(`/api/cookies/${encodeURIComponent(acc.username)}`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ cookies: acc.cookies_raw || '' })
+            });
+          } catch (e) {
+            cookieFailures.push(`${acc.username}: ${e.message || 'save failed'}`);
+          }
+        }
+
+        await loadConfig();
+
+        if (cookieFailures.length) {
+          showError(`Accounts saved, but some cookies failed:\n${cookieFailures.join('\n')}`);
+        } else {
+          showToast("Accounts and cookies saved successfully!");
+        }
+      } catch (e) {
+        showError(e.message || 'Failed to save accounts');
+      }
+    }
+
+    function renderUsers() {
+      const tbody = document.querySelector('#usersTable tbody');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+      if (!globalIsMaster) {
+        return;
+      }
+
+      if (!globalUsers.length) {
+        tbody.innerHTML = '<tr><td colspan="3" style="color: var(--text-muted); font-size:0.85rem;">No dashboard users yet.</td></tr>';
+        return;
+      }
+
+      globalUsers.forEach(user => {
+        const safeUser = escapeHtml(user.username || '');
+        const safeRole = escapeHtml((user.role || 'employee').toUpperCase());
+        const encodedUser = encodeURIComponent(user.username || '');
+        const isMasterRow = (user.role || '').toLowerCase() === 'master';
+
+        const actions = isMasterRow
+          ? `
+              <button class="btn btn-primary btn-sm" onclick="editDashboardUser(decodeURIComponent('${encodedUser}'))"><i class="fas fa-user-pen"></i> Edit</button>
+              <span style="color: var(--text-muted); font-size:0.8rem;">Primary account</span>
+            `
+          : `
+              <button class="btn btn-primary btn-sm" onclick="editDashboardUser(decodeURIComponent('${encodedUser}'))"><i class="fas fa-user-pen"></i> Edit</button>
+              <button class="btn btn-primary btn-sm" onclick="resetEmployeePassword(decodeURIComponent('${encodedUser}'))"><i class="fas fa-key"></i> Reset</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteEmployeeUser(decodeURIComponent('${encodedUser}'))"><i class="fas fa-trash"></i></button>
+            `;
+
+        tbody.innerHTML += `
+          <tr>
+            <td>${safeUser}</td>
+            <td><span class="badge" style="background:rgba(216,155,2,0.16); border:1px solid rgba(216,155,2,0.38); color:#f3c24d;">${safeRole}</span></td>
+            <td style="display:flex; gap:0.5rem;">${actions}</td>
+          </tr>
+        `;
       });
-      globalAccounts = cleanAccs;
-      renderAccounts();
-      showToast("Accounts Saved successfully!");
+    }
+
+    async function createEmployeeUser() {
+      if (!globalIsMaster) return;
+
+      const usernameEl = document.getElementById('newEmployeeUsername');
+      const passwordEl = document.getElementById('newEmployeePassword');
+      const username = (usernameEl.value || '').trim();
+      const password = passwordEl.value || '';
+
+      if (!username) {
+        showError('Employee username is required');
+        return;
+      }
+
+      try {
+        await apiJson('/api/users', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username, password, role: 'employee'})
+        });
+
+        usernameEl.value = '';
+        passwordEl.value = '';
+        await loadConfig();
+        showToast(`Employee ${username} created`);
+      } catch (e) {
+        showError(e.message || 'Failed to create employee user');
+      }
+    }
+
+    function resetEmployeePassword(username) {
+      if (!globalIsMaster) return;
+
+      activeResetPasswordUser = username;
+      const titleEl = document.getElementById('resetPasswordModalTitle');
+      if (titleEl) titleEl.innerText = `Reset Password: ${username}`;
+      document.getElementById('resetPasswordInput').value = '';
+      document.getElementById('resetPasswordConfirmInput').value = '';
+      document.getElementById('resetPasswordModalOverlay').classList.add('show');
+    }
+
+    function closeResetPasswordModal() {
+      document.getElementById('resetPasswordModalOverlay').classList.remove('show');
+      activeResetPasswordUser = '';
+    }
+
+    async function saveResetPasswordModal() {
+      if (!globalIsMaster || !activeResetPasswordUser) return;
+
+      const newPassword = document.getElementById('resetPasswordInput').value || '';
+      const confirmPassword = document.getElementById('resetPasswordConfirmInput').value || '';
+
+      if (!newPassword || newPassword.length < 4) {
+        showError('Password must be at least 4 characters');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        showError('Password and confirm password do not match');
+        return;
+      }
+
+      try {
+        await apiJson(`/api/users/${encodeURIComponent(activeResetPasswordUser)}/password`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({password: newPassword})
+        });
+
+        const doneFor = activeResetPasswordUser;
+        closeResetPasswordModal();
+        showToast(`Password updated for ${doneFor}`);
+      } catch (e) {
+        showError(e.message || 'Failed to update password');
+      }
+    }
+
+    function editDashboardUser(username) {
+      if (!globalIsMaster) return;
+      activeEditUser = username;
+
+      const title = document.getElementById('userEditModalTitle');
+      const current = document.getElementById('userEditCurrentUsername');
+      const newUser = document.getElementById('userEditNewUsername');
+      const newPass = document.getElementById('userEditNewPassword');
+      const confirmPass = document.getElementById('userEditConfirmPassword');
+
+      if (title) title.innerText = `Edit Dashboard User: ${username}`;
+      if (current) current.value = username;
+      if (newUser) newUser.value = username;
+      if (newPass) newPass.value = '';
+      if (confirmPass) confirmPass.value = '';
+
+      document.getElementById('userEditModalOverlay').classList.add('show');
+    }
+
+    function closeUserEditModal() {
+      document.getElementById('userEditModalOverlay').classList.remove('show');
+      activeEditUser = '';
+    }
+
+    async function saveUserEditModal() {
+      if (!globalIsMaster || !activeEditUser) return;
+
+      const oldUsername = activeEditUser;
+      const newUsername = (document.getElementById('userEditNewUsername').value || '').trim();
+      const newPassword = document.getElementById('userEditNewPassword').value || '';
+      const confirmPassword = document.getElementById('userEditConfirmPassword').value || '';
+
+      if (!newUsername) {
+        showError('Username cannot be empty');
+        return;
+      }
+
+      if (newPassword && newPassword.length < 4) {
+        showError('Password must be at least 4 characters');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        showError('New password and confirm password do not match');
+        return;
+      }
+
+      try {
+        await apiJson(`/api/users/${encodeURIComponent(activeEditUser)}/update`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            username: newUsername,
+            password: newPassword,
+          })
+        });
+
+        closeUserEditModal();
+        await loadConfig();
+        showToast(`User ${oldUsername} updated`);
+      } catch (e) {
+        showError(e.message || 'Failed to update user');
+      }
+    }
+
+    async function deleteEmployeeUser(username) {
+      if (!globalIsMaster) return;
+      const ok = await confirmModal(`Delete dashboard user ${username}?`, 'Delete User', 'Delete');
+      if (!ok) return;
+
+      try {
+        await apiJson(`/api/users/${encodeURIComponent(username)}`, {
+          method: 'DELETE'
+        });
+        await loadConfig();
+        showToast(`User ${username} deleted`);
+      } catch (e) {
+        showError(e.message || 'Failed to delete user');
+      }
     }
 
     // ── Targets Logic ──
     async function saveModels() {
-      const text = document.getElementById('modelsTextarea').value;
+      const modelsTextarea = document.getElementById('modelsTextarea');
+      const text = modelsTextarea ? modelsTextarea.value : globalModels.join('\n');
       const list = text.split('\n').map(x => x.trim()).filter(x => x);
-      await fetch('/api/config/models', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(list)
-      });
-      showToast("Models List Saved successfully!");
+      try {
+        await apiJson('/api/config/models', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(list)
+        });
+        globalModels = list;
+        renderModelsDatalist();
+        showToast("Models List Saved successfully!");
+      } catch (e) {
+        showError(e.message || 'Failed to save models');
+      }
     }
     
     async function saveMessages() {
-      const text = document.getElementById('messagesTextarea').value;
+      const messagesTextarea = document.getElementById('messagesTextarea');
+      const text = messagesTextarea ? messagesTextarea.value : globalMessages.join('\n');
       const list = text.split('\n').map(x => x.trim()).filter(x => x);
-      await fetch('/api/config/messages', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(list)
+      try {
+        await apiJson('/api/config/messages', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(list)
+        });
+        globalMessages = list;
+        showToast("Message Templates Saved successfully!");
+      } catch (e) {
+        showError(e.message || 'Failed to save messages');
+      }
+    }
+
+    function renderModelMessages() {
+      const tbody = document.querySelector('#modelMessagesTable tbody');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+      const showMetaCol = globalIsMaster;
+      const columnCount = showMetaCol ? 4 : 3;
+
+      if (!globalModelMessages.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="${columnCount}" style="color: var(--text-muted); font-size: 0.85rem;">
+              No model-specific sets yet. Add at least one model and message set.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      globalModelMessages.forEach((entry, i) => {
+        const safeModel = escapeHtml(entry.model || '');
+        const safeMessages = escapeHtml((entry.messages || []).join('\n'));
+        const safeMeta = escapeHtml(formatModelMessageMeta(entry.model || ''));
+        tbody.innerHTML += `
+          <tr>
+            <td>
+              <input type="text" id="mm_model_${i}" list="modelsDatalist" value="${safeModel}" placeholder="alice">
+            </td>
+            <td>
+              <textarea id="mm_msgs_${i}" rows="4" placeholder="One line per message">${safeMessages}</textarea>
+            </td>
+            ${showMetaCol ? `<td style="font-size: 0.82rem; color: var(--text-muted);">${safeMeta}</td>` : ''}
+            <td>
+              <button class="btn btn-danger btn-sm" title="Delete Set" onclick="removeModelMessageRow(${i})"><i class="fas fa-trash"></i></button>
+            </td>
+          </tr>
+        `;
       });
-      showToast("Message Templates Saved successfully!");
+    }
+
+    function syncModelMessagesFromDom() {
+      globalModelMessages.forEach((entry, i) => {
+        const modelInput = document.getElementById(`mm_model_${i}`);
+        const msgInput = document.getElementById(`mm_msgs_${i}`);
+        if (modelInput) entry.model = modelInput.value;
+        if (msgInput) entry.messages = parseMessageLines(msgInput.value);
+      });
+    }
+
+    function addModelMessageRow() {
+      syncModelMessagesFromDom();
+      globalModelMessages.push({ model: '', messages: [] });
+      renderModelMessages();
+    }
+
+    function removeModelMessageRow(idx) {
+      syncModelMessagesFromDom();
+      globalModelMessages.splice(idx, 1);
+      renderModelMessages();
+    }
+
+    async function saveModelMessages() {
+      syncModelMessagesFromDom();
+
+      const normalizedRows = [];
+      const modelMessageMap = {};
+
+      globalModelMessages.forEach(entry => {
+        const cleanModel = String(entry.model || '').trim().replace(/^@+/, '');
+        const cleanMessages = Array.isArray(entry.messages)
+          ? entry.messages.map(x => String(x || '').trim()).filter(x => x)
+          : [];
+        const modelKey = normalizeModelKey(cleanModel);
+
+        if (!modelKey || !cleanMessages.length) {
+          return;
+        }
+
+        normalizedRows.push({ model: cleanModel, messages: cleanMessages });
+        modelMessageMap[modelKey] = cleanMessages;
+      });
+
+      globalModelMessages = normalizedRows;
+      const derivedModels = Array.from(new Set(
+        normalizedRows
+          .map(entry => String(entry.model || '').trim().replace(/^@+/, ''))
+          .filter(Boolean)
+      ));
+      globalModels = derivedModels;
+      const nextModelMeta = {};
+      Object.keys(modelMessageMap).forEach(modelKey => {
+        const prevMeta = globalModelMessageMeta[modelKey];
+        if (prevMeta && typeof prevMeta === 'object' && !Array.isArray(prevMeta)) {
+          nextModelMeta[modelKey] = {...prevMeta};
+        }
+      });
+      globalModelMessageMeta = nextModelMeta;
+      globalSettings.MODEL_MESSAGE_MAP = modelMessageMap;
+      globalSettings.MODEL_MESSAGE_META = globalModelMessageMeta;
+
+      try {
+        await apiJson('/api/config/models', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(derivedModels)
+        });
+
+        const mapResponse = await apiJson('/api/config/model_message_map', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(modelMessageMap)
+        });
+
+        const responseMeta = mapResponse.model_message_meta;
+        if (responseMeta && typeof responseMeta === 'object' && !Array.isArray(responseMeta)) {
+          const cleanMeta = {};
+          Object.keys(responseMeta).forEach(modelKey => {
+            const key = normalizeModelKey(modelKey);
+            if (!key) {
+              return;
+            }
+            const meta = responseMeta[modelKey];
+            if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+              return;
+            }
+            cleanMeta[key] = {
+              created_by: String(meta.created_by || '').trim(),
+              created_at: String(meta.created_at || '').trim(),
+              updated_by: String(meta.updated_by || '').trim(),
+              updated_at: String(meta.updated_at || '').trim(),
+            };
+          });
+          globalModelMessageMeta = cleanMeta;
+          globalSettings.MODEL_MESSAGE_META = cleanMeta;
+        }
+
+        renderModelsDatalist();
+        renderModelMessages();
+        showToast("Targets and model-specific messages saved!");
+      } catch (e) {
+        showError(e.message || 'Failed to save targets and model-specific messages');
+      }
     }
 
     // ── Settings Logic ──
@@ -527,13 +1712,17 @@
         
         payload[key] = val;
       });
-      
-      await fetch('/api/config/settings', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      });
-      showToast("Bot Settings Applied dynamically!");
+
+      try {
+        await apiJson('/api/config/settings', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        showToast("Bot Settings Applied dynamically!");
+      } catch (e) {
+        showError(e.message || 'Failed to apply settings');
+      }
     }
 
     // ── Dashboard Live Stream ──
@@ -580,51 +1769,92 @@
     }
 
     // ── Cookie UI Handlers ──
-    let activeCookieUser = "";
-    async function openCookieModal(username) {
-      if (!username) { alert("Please save the account username first."); return; }
+    async function openCookieModalFromRow(idx) {
+      syncAccountsFromDom();
+      const account = globalAccounts[idx];
+      if (!account) return;
+
+      if (!globalIsMaster && account.shared_readonly) {
+        showError('Queued accounts from other employees are read-only');
+        return;
+      }
+
+      const username = String(account.username || '').trim();
+      if (!username) {
+        showError('Please enter username first.');
+        return;
+      }
+
+      activeCookieRowIndex = idx;
       activeCookieUser = username;
+
       document.getElementById('cookieModalTitle').innerText = `Edit Cookies: ${username}`;
-      document.getElementById('cookieJsonTextarea').value = "Loading...";
+      document.getElementById('cookieJsonTextarea').value = 'Loading...';
       document.getElementById('cookieModalOverlay').classList.add('show');
-      
+
+      if (account.cookies_touched) {
+        document.getElementById('cookieJsonTextarea').value = account.cookies_raw || '';
+        return;
+      }
+
       try {
-        const res = await fetch(`/api/cookies/${username}`);
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById('cookieJsonTextarea').value = data.cookies;
-        } else {
-          document.getElementById('cookieJsonTextarea').value = "";
-        }
-      } catch(e) { document.getElementById('cookieJsonTextarea').value = ""; }
+        const data = await apiJson(`/api/cookies/${encodeURIComponent(username)}`);
+        const cookiesRaw = data.cookies || '';
+        account.cookies_raw = cookiesRaw;
+        document.getElementById('cookieJsonTextarea').value = cookiesRaw;
+      } catch (e) {
+        document.getElementById('cookieJsonTextarea').value = account.cookies_raw || '';
+      }
     }
     
     function closeCookieModal() {
       document.getElementById('cookieModalOverlay').classList.remove('show');
+      activeCookieRowIndex = -1;
+      activeCookieUser = '';
     }
     
     async function saveCookieModal() {
+      if (activeCookieRowIndex < 0 || !globalAccounts[activeCookieRowIndex]) {
+        showError('No account row selected for cookies');
+        return;
+      }
+
       const val = document.getElementById('cookieJsonTextarea').value;
-      try {
-        const res = await fetch(`/api/cookies/${activeCookieUser}`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({cookies: val})
-        });
-        const data = await res.json();
-        if (data.success) {
-          closeCookieModal();
-          showToast(`Cookies saved for ${activeCookieUser}`);
-        } else {
-          alert("Error: " + data.error);
+      if (String(val || '').trim()) {
+        try {
+          JSON.parse(val);
+        } catch (e) {
+          showError('Cookies must be valid JSON');
+          return;
         }
-      } catch(e) { alert("Network error saving cookies."); }
+      }
+
+      const row = globalAccounts[activeCookieRowIndex];
+      row.cookies_raw = val;
+      row.cookies_touched = true;
+
+      const username = activeCookieUser;
+      closeCookieModal();
+      showToast(`Cookies staged for ${username}. Click Save Accounts to apply.`);
     }
 
     // Init
-    loadConfig();
-    fetchStatus();
-    setInterval(fetchStatus, 5000); // 5s log poll
+    async function initApp() {
+      await loadConfig();
+
+      if (!globalIsMaster) {
+        return;
+      }
+
+      await fetchStatus();
+      setInterval(() => {
+        fetchStatus();
+        loadEmployeeActivity();
+        loadAllActivity();
+      }, 5000); // 5s log poll
+    }
+
+    initApp();
 
   </script>
 </body>

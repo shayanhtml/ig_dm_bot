@@ -18,6 +18,7 @@ from config.settings import (
     DM_DELAY_MIN, DM_DELAY_MAX,
     ACTION_DELAY_MIN, ACTION_DELAY_MAX,
 )
+from config.database import get_setting
 from core.auth import human_delay
 
 logger = logging.getLogger("model_dm_bot")
@@ -246,8 +247,18 @@ def _dismiss_popups(driver):
             continue
 
 
-def wait_between_dms():
+def wait_between_dms(stop_event=None):
     """Random delay between DMs to appear human-like."""
-    delay = random.uniform(DM_DELAY_MIN, DM_DELAY_MAX)
+    dm_delay_min = float(get_setting("DM_DELAY_MIN", DM_DELAY_MIN))
+    dm_delay_max = float(get_setting("DM_DELAY_MAX", DM_DELAY_MAX))
+    if dm_delay_max < dm_delay_min:
+        dm_delay_min, dm_delay_max = dm_delay_max, dm_delay_min
+
+    delay = random.uniform(dm_delay_min, dm_delay_max)
     logger.info(f"[DM] Waiting {delay:.0f}s before next DM...")
-    time.sleep(delay)
+
+    end_time = time.time() + delay
+    while time.time() < end_time:
+        if stop_event and stop_event.is_set():
+            return
+        time.sleep(min(0.5, max(0.0, end_time - time.time())))

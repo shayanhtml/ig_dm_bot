@@ -20,6 +20,7 @@ from config.settings import (
     POST_AGE_PRIORITY_HOURS,
     ACTION_DELAY_MIN, ACTION_DELAY_MAX,
 )
+from config.database import get_setting
 from core.auth import human_delay
 
 logger = logging.getLogger("model_dm_bot")
@@ -53,6 +54,7 @@ def get_recent_posts(driver, model_username: str) -> list:
         pass
 
     # Wait for posts grid to load — match both /p/ and /reel/ links
+    max_posts_to_check = int(get_setting("MAX_POSTS_TO_CHECK", MAX_POSTS_TO_CHECK))
     posts = []
     post_xpath = "//a[contains(@href, '/p/') or contains(@href, '/reel/')]"
     try:
@@ -75,7 +77,7 @@ def get_recent_posts(driver, model_username: str) -> list:
                     "url": href,
                     "age_hours": None,  # Will be determined when visiting the post
                 })
-            if len(posts) >= MAX_POSTS_TO_CHECK:
+            if len(posts) >= max_posts_to_check:
                 break
     except Exception as e:
         logger.error(f"[Scraper] Error collecting post links: {e}")
@@ -236,7 +238,8 @@ def get_post_interactors(driver, post_url: str, already_dmd: set, model_username
 
     # 4. Scrape likers by clicking "likes" count
     try:
-        likers = _scrape_likers(driver, already_dmd, MAX_LIKERS_PER_POST)
+        max_likers = int(get_setting("MAX_LIKERS_PER_POST", MAX_LIKERS_PER_POST))
+        likers = _scrape_likers(driver, already_dmd, max_likers)
         usernames.update(likers)
     except Exception as e:
         logger.debug(f"[Scraper] Error scraping likers: {e}")

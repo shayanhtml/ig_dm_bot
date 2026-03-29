@@ -7,29 +7,15 @@ import os
 import time
 import logging
 
-from config.settings import COOKIES_DIR
+from config import database
 
 logger = logging.getLogger("model_dm_bot")
 
 
-def _cookie_path(account_name: str) -> str:
-    """Get the cookie file path for a specific account."""
-    safe_name = account_name.replace("@", "").replace(".", "_")
-    return os.path.join(COOKIES_DIR, f"{safe_name}.json")
-
-
 def cookies_exist(account_name: str) -> bool:
-    """Check if a cookie file exists for the given account."""
-    path = _cookie_path(account_name)
-    if not os.path.exists(path):
-        return False
-    # Check if file has content
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return isinstance(data, list) and len(data) > 0
-    except (json.JSONDecodeError, IOError):
-        return False
+    """Check if a cookie exists mapping for the given account."""
+    data = database.get_cookies(account_name)
+    return isinstance(data, list) and len(data) > 0
 
 
 def save_cookies(driver, account_name: str) -> bool:
@@ -49,11 +35,9 @@ def save_cookies(driver, account_name: str) -> bool:
             logger.warning(f"[{account_name}] No cookies to save")
             return False
 
-        path = _cookie_path(account_name)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(cookies, f, indent=2)
+        database.save_cookies(account_name, cookies)
 
-        logger.info(f"[{account_name}] Saved {len(cookies)} cookies to {os.path.basename(path)}")
+        logger.info(f"[{account_name}] Saved {len(cookies)} cookies to Database")
         return True
     except Exception as e:
         logger.error(f"[{account_name}] Failed to save cookies: {e}")
@@ -72,18 +56,12 @@ def load_cookies(driver, account_name: str) -> bool:
     Returns:
         True if cookies were loaded and injected successfully
     """
-    path = _cookie_path(account_name)
-    if not os.path.exists(path):
-        logger.info(f"[{account_name}] No cookie file found at {path}")
+    cookies = database.get_cookies(account_name)
+    if not cookies:
+        logger.info(f"[{account_name}] No cookies found in database")
         return False
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            cookies = json.load(f)
-
-        if not cookies:
-            logger.info(f"[{account_name}] Cookie file is empty")
-            return False
 
         # Clear existing cookies first
         driver.delete_all_cookies()
@@ -129,10 +107,9 @@ def refresh_cookies(driver, account_name: str) -> bool:
 
 
 def delete_cookies(account_name: str) -> bool:
-    """Delete the cookie file for an account (e.g. when session is invalid)."""
-    path = _cookie_path(account_name)
-    if os.path.exists(path):
-        os.remove(path)
-        logger.info(f"[{account_name}] Deleted cookie file")
+    """Delete the cookie entry for an account."""
+    if cookies_exist(account_name):
+        database.save_cookies(account_name, [])
+        logger.info(f"[{account_name}] Deleted cookies from Database")
         return True
     return False

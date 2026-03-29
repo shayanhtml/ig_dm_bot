@@ -8,15 +8,17 @@ import sys
 import time
 import random
 import logging
+import threading
 
 from config.settings import (
-    ACCOUNTS_FILE, MODELS_FILE, MESSAGES_FILE, DM_LOG_FILE,
     DM_MIN_PER_MODEL, DM_MAX_PER_MODEL,
     ACCOUNT_SWITCH_DELAY_MIN, ACCOUNT_SWITCH_DELAY_MAX,
     MODEL_SWITCH_DELAY_MIN, MODEL_SWITCH_DELAY_MAX,
     CHALLENGE_WAIT_TIMEOUT,
     LOGS_DIR,
 )
+from config import database
+from config.database import get_setting
 from core.browser import create_driver, close_driver
 from core.cookie_manager import save_cookies, refresh_cookies
 from core.auth import (
@@ -30,6 +32,42 @@ from core.dm_sender import send_dm, DMResult, wait_between_dms
 from telegram.bot import telegram_bot
 
 logger = logging.getLogger("model_dm_bot")
+_active_drivers = set()
+_active_drivers_lock = threading.Lock()
+
+
+def _interruptible_sleep(seconds: float, stop_event=None, tick: float = 0.5) -> bool:
+    """Sleep in short ticks so stop requests can interrupt long waits."""
+    end_time = time.time() + max(0, seconds)
+    while time.time() < end_time:
+        if stop_event and stop_event.is_set():
+            return True
+        remaining = end_time - time.time()
+        time.sleep(min(tick, max(0.0, remaining)))
+    return False
+
+
+def _register_driver(driver):
+    with _active_drivers_lock:
+        _active_drivers.add(driver)
+
+
+def _unregister_driver(driver):
+    with _active_drivers_lock:
+        _active_drivers.discard(driver)
+
+
+def force_stop_active_sessions():
+    """Force-close active browsers so stop requests interrupt current Selenium tasks."""
+    with _active_drivers_lock:
+        drivers = list(_active_drivers)
+        _active_drivers.clear()
+
+    for drv in drivers:
+        try:
+            close_driver(drv)
+        except Exception:
+            pass
 
 
 def setup_logging():
@@ -59,27 +97,7 @@ def setup_logging():
     root_logger.addHandler(ch)
 
 
-def load_json(filepath: str) -> list | dict:
-    """Load a JSON config file."""
-    with open(filepath, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def load_dm_log() -> dict:
-    """Load the DM log (tracks who was already messaged)."""
-    if os.path.exists(DM_LOG_FILE):
-        try:
-            with open(DM_LOG_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return {}
-    return {}
-
-
-def save_dm_log(dm_log: dict):
-    """Save the DM log back to disk."""
-    with open(DM_LOG_FILE, "w", encoding="utf-8") as f:
-        json.dump(dm_log, f, indent=2)
+# Old JSON functions removed. Bot now relies on Database.
 
 
 def log_and_telegram(msg: str):
@@ -88,7 +106,51 @@ def log_and_telegram(msg: str):
     telegram_bot.add_log(msg)
 
 
-def run_bot():
+def _normalize_model_key(model_username: str) -> str:
+    """Normalize model usernames to a stable lookup key."""
+    return str(model_username or "").strip().lstrip("@").lower()
+
+
+def _normalize_message_list(raw_messages) -> list:
+    """Normalize a raw messages array into non-empty trimmed strings."""
+    if not isinstance(raw_messages, list):
+        return []
+
+    clean_messages = []
+    for msg in raw_messages:
+        if not isinstance(msg, str):
+            continue
+        trimmed = msg.strip()
+        if trimmed:
+            clean_messages.append(trimmed)
+    return clean_messages
+
+
+def _normalize_model_message_map(raw_map) -> dict:
+    """Normalize MODEL_MESSAGE_MAP from settings into {model_key: [messages]} format."""
+    if not isinstance(raw_map, dict):
+        return {}
+
+    normalized = {}
+    for raw_model, raw_messages in raw_map.items():
+        model_key = _normalize_model_key(raw_model)
+        if not model_key:
+            continue
+
+        messages = _normalize_message_list(raw_messages)
+        if messages:
+            normalized[model_key] = messages
+
+    return normalized
+
+
+def _messages_for_model(model_username: str, default_messages: list, model_message_map: dict) -> list:
+    """Return custom messages for a model when available, otherwise global defaults."""
+    custom_messages = model_message_map.get(_normalize_model_key(model_username), [])
+    return custom_messages if custom_messages else default_messages
+
+
+def run_bot(stop_event=None, account_owner=None):
     """Main bot orchestration loop."""
     setup_logging()
 
@@ -96,42 +158,57 @@ def run_bot():
     logger.info("  INSTAGRAM MODEL DM BOT — STARTING")
     logger.info("=" * 60)
 
-    # Load config
+    # Load config from Database
     try:
-        accounts = load_json(ACCOUNTS_FILE)
-        models = load_json(MODELS_FILE)
-        messages = load_json(MESSAGES_FILE)
+        if account_owner:
+            accounts = database.get_accounts(owner_username=account_owner)
+        else:
+            accounts = database.get_accounts(include_all=True)
+
+        models = database.get_models()
+        messages = _normalize_message_list(database.get_messages())
+        model_message_map = _normalize_model_message_map(
+            database.get_setting("MODEL_MESSAGE_MAP", {})
+        )
     except Exception as e:
-        logger.error(f"Failed to load config: {e}")
+        logger.error(f"Failed to load config from database: {e}")
         return
 
     if not accounts:
-        logger.error("No accounts configured in accounts.json")
+        if account_owner:
+            logger.error(f"No accounts configured for employee @{account_owner}")
+        else:
+            logger.error("No accounts configured")
         return
     if not models:
         logger.error("No models configured in models.json")
         return
-    if not messages:
-        logger.error("No messages configured in messages.json")
+    if not messages and not model_message_map:
+        logger.error("No messages configured (general or model-specific)")
         return
 
-    logger.info(f"Loaded {len(accounts)} accounts, {len(models)} models, {len(messages)} message templates")
+    logger.info(
+        f"Loaded {len(accounts)} accounts, {len(models)} models, "
+        f"{len(messages)} general messages, {len(model_message_map)} model-specific sets"
+    )
+    if account_owner:
+        logger.info(f"Account scope: employee @{account_owner}")
 
     # Load DM log and build 24-hour exclusion set
     from datetime import datetime, timedelta
-    dm_log = load_dm_log()
+    dm_log = database.get_dm_logs()
     already_dmd = set()
     cutoff_time = datetime.now() - timedelta(hours=24)
     
-    for user_dmd, data in dm_log.items():
+    for user_dmd, timestamp_str in dm_log.items():
         try:
-            timestamp_str = data.get("timestamp", "")
             if not timestamp_str:
                 already_dmd.add(user_dmd)
                 continue
             
             # support fromisoformat compatibility
-            dmd_time = datetime.fromisoformat(timestamp_str)
+            safe_ts = timestamp_str.replace("Z", "+00:00")
+            dmd_time = datetime.fromisoformat(safe_ts)
             if dmd_time > cutoff_time:
                 already_dmd.add(user_dmd)
         except (ValueError, TypeError):
@@ -148,6 +225,10 @@ def run_bot():
 
     try:
         for account in accounts:
+            if stop_event and stop_event.is_set():
+                log_and_telegram("🛑 Stop requested. Ending current session.")
+                break
+
             username = account["username"]
             log_and_telegram(f"━━━ Switching to account: @{username} ━━━")
             telegram_bot.stats["current_account"] = username
@@ -157,6 +238,7 @@ def run_bot():
             driver = None
             try:
                 driver = create_driver()
+                _register_driver(driver)
             except Exception as e:
                 log_and_telegram(f"❌ Failed to create browser for @{username}: {e}")
                 log_and_telegram("⚠️ Check your internet connection — ChromeDriver needs to download.")
@@ -172,6 +254,10 @@ def run_bot():
 
                 # Process each model
                 for model_username in models:
+                    if stop_event and stop_event.is_set():
+                        log_and_telegram("🛑 Stop requested, breaking model loop.")
+                        break
+
                     if not telegram_bot._polling:
                         log_and_telegram("🛑 Stop requested, finishing up...")
                         break
@@ -179,8 +265,22 @@ def run_bot():
                     log_and_telegram(f"🎯 Targeting model: @{model_username}")
                     telegram_bot.stats["current_model"] = model_username
 
+                    messages_for_model = _messages_for_model(model_username, messages, model_message_map)
+                    if not messages_for_model:
+                        log_and_telegram(f"[{username}] ⚠️ No messages configured for @{model_username}, skipping")
+                        continue
+
+                    if _normalize_model_key(model_username) in model_message_map:
+                        log_and_telegram(
+                            f"[{username}] Using {len(messages_for_model)} custom messages for @{model_username}"
+                        )
+                    else:
+                        log_and_telegram(
+                            f"[{username}] Using general message pool for @{model_username}"
+                        )
+
                     dms_for_model = _process_model(
-                        driver, account, model_username, messages, dm_log, already_dmd
+                        driver, account, model_username, messages_for_model, dm_log, already_dmd, stop_event=stop_event
                     )
 
                     total_dms_sent += dms_for_model
@@ -191,18 +291,21 @@ def run_bot():
                         telegram_bot.stats["models_processed"] = total_models_done
                         telegram_bot.send_model_complete(model_username, dms_for_model)
 
-                    # Save DM log after each model
-                    save_dm_log(dm_log)
-
                     # Check if still logged in
                     if not is_logged_in(driver):
                         log_and_telegram(f"⚠️ Lost login for @{username} during model processing")
                         break
 
                     # Delay before next model
-                    delay = random.uniform(MODEL_SWITCH_DELAY_MIN, MODEL_SWITCH_DELAY_MAX)
+                    model_delay_min = float(get_setting("MODEL_SWITCH_DELAY_MIN", MODEL_SWITCH_DELAY_MIN))
+                    model_delay_max = float(get_setting("MODEL_SWITCH_DELAY_MAX", MODEL_SWITCH_DELAY_MAX))
+                    if model_delay_max < model_delay_min:
+                        model_delay_min, model_delay_max = model_delay_max, model_delay_min
+
+                    delay = random.uniform(model_delay_min, model_delay_max)
                     log_and_telegram(f"⏳ Waiting {delay:.0f}s before next model...")
-                    time.sleep(delay)
+                    if _interruptible_sleep(delay, stop_event=stop_event):
+                        break
 
                 # Refresh cookies after session
                 refresh_cookies(driver, username)
@@ -212,12 +315,19 @@ def run_bot():
                 telegram_bot.send_error(str(e))
             finally:
                 close_driver(driver)
+                _unregister_driver(driver)
 
             # Delay before switching accounts
-            if account != accounts[-1]:
-                delay = random.uniform(ACCOUNT_SWITCH_DELAY_MIN, ACCOUNT_SWITCH_DELAY_MAX)
+            if account != accounts[-1] and not (stop_event and stop_event.is_set()):
+                account_delay_min = float(get_setting("ACCOUNT_SWITCH_DELAY_MIN", ACCOUNT_SWITCH_DELAY_MIN))
+                account_delay_max = float(get_setting("ACCOUNT_SWITCH_DELAY_MAX", ACCOUNT_SWITCH_DELAY_MAX))
+                if account_delay_max < account_delay_min:
+                    account_delay_min, account_delay_max = account_delay_max, account_delay_min
+
+                delay = random.uniform(account_delay_min, account_delay_max)
                 log_and_telegram(f"⏳ Waiting {delay:.0f}s before switching accounts...")
-                time.sleep(delay)
+                if _interruptible_sleep(delay, stop_event=stop_event):
+                    break
 
     except KeyboardInterrupt:
         log_and_telegram("🛑 Bot stopped by user (Ctrl+C)")
@@ -225,7 +335,6 @@ def run_bot():
         log_and_telegram(f"❌ Fatal error: {e}")
         telegram_bot.send_error(str(e))
     finally:
-        save_dm_log(dm_log)
         telegram_bot.send_session_complete(total_dms_sent, total_models_done)
         telegram_bot.stats["status"] = "Stopped"
         telegram_bot.stop_polling()
@@ -306,7 +415,8 @@ def _perform_login(driver, account: dict) -> bool:
 
 def _process_model(
     driver, account: dict, model_username: str,
-    messages: list, dm_log: dict, already_dmd: set
+    messages: list, dm_log: dict, already_dmd: set,
+    stop_event=None,
 ) -> int:
     """
     Process a single model target:
@@ -318,7 +428,11 @@ def _process_model(
     Returns number of DMs successfully sent.
     """
     username = account["username"]
-    dm_target = random.randint(DM_MIN_PER_MODEL, DM_MAX_PER_MODEL)
+    dm_min = int(get_setting("DM_MIN_PER_MODEL", DM_MIN_PER_MODEL))
+    dm_max = int(get_setting("DM_MAX_PER_MODEL", DM_MAX_PER_MODEL))
+    if dm_max < dm_min:
+        dm_min, dm_max = dm_max, dm_min
+    dm_target = random.randint(dm_min, dm_max)
     dms_sent = 0
 
     log_and_telegram(f"[{username}] Target: send {dm_target} DMs for @{model_username}")
@@ -341,13 +455,17 @@ def _process_model(
 
     # Step 3: DM post interactors
     for post in sorted_posts:
+        if stop_event and stop_event.is_set():
+            break
+
         if dms_sent >= dm_target or post_dms_sent >= post_dm_target:
             break
 
         age_label = f"{post['age_hours']}h" if post['age_hours'] < 999 else "unknown"
 
         # Skip posts older than 24 hours
-        if post['age_hours'] > 24:
+        post_age_limit = int(get_setting("POST_AGE_PRIORITY_HOURS", 24))
+        if post['age_hours'] > post_age_limit:
             log_and_telegram(f"[{username}] ⏭️ Skipping post ({age_label} old) — too old: {post['url'][-20:]}")
             continue
 
@@ -360,7 +478,7 @@ def _process_model(
             remaining = min(remaining_for_posts, dm_target - dms_sent)
             
             targets = interactors[:remaining]
-            sent = _dm_list(driver, targets, messages, dm_log, already_dmd, remaining, username, model_username)
+            sent = _dm_list(driver, targets, messages, dm_log, already_dmd, remaining, username, model_username, stop_event=stop_event)
             dms_sent += sent
             post_dms_sent += sent
 
@@ -374,7 +492,7 @@ def _process_model(
 
         followers = get_followers(driver, model_username, already_dmd, max_count=remaining)
         if followers:
-            sent = _dm_list(driver, followers, messages, dm_log, already_dmd, remaining, username, model_username)
+            sent = _dm_list(driver, followers, messages, dm_log, already_dmd, remaining, username, model_username, stop_event=stop_event)
             dms_sent += sent
 
     log_and_telegram(f"[{username}] ✅ Completed @{model_username}: {dms_sent}/{dm_target} DMs sent")
@@ -384,7 +502,8 @@ def _process_model(
 def _dm_list(
     driver, usernames: list, messages: list,
     dm_log: dict, already_dmd: set,
-    max_dms: int, sender: str, model: str
+    max_dms: int, sender: str, model: str,
+    stop_event=None,
 ) -> int:
     """
     Send DMs to a list of usernames.
@@ -394,6 +513,10 @@ def _dm_list(
     sent = 0
 
     for target_user in usernames:
+        if stop_event and stop_event.is_set():
+            log_and_telegram(f"[{sender}] 🛑 Stop requested during DM queue")
+            break
+
         if sent >= max_dms:
             break
 
@@ -409,17 +532,11 @@ def _dm_list(
         if result == DMResult.SENT:
             sent += 1
             already_dmd.add(target_user)
-            dm_log[target_user] = {
-                "sent_by": sender,
-                "model": model,
-                "message": message[:50],
-                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            }
+            database.log_dm_sent(target_user)
             log_and_telegram(f"[{sender}] ✅ DM sent to @{target_user} ({sent}/{max_dms})")
         elif result == DMResult.CANT_MESSAGE:
             log_and_telegram(f"[{sender}] ⚠️ Can't message @{target_user}")
             already_dmd.add(target_user)  # Don't retry
-            dm_log[target_user] = {"status": "cant_message", "sent_by": sender}
         elif result == DMResult.USER_NOT_FOUND:
             log_and_telegram(f"[{sender}] ❌ @{target_user} not found")
             already_dmd.add(target_user)
@@ -434,7 +551,8 @@ def _dm_list(
             telegram_bot.send_challenge_alert(sender, challenge.value)
 
             if challenge == ChallengeType.TWO_FACTOR:
-                code = telegram_bot.wait_for_code(CHALLENGE_WAIT_TIMEOUT)
+                challenge_timeout = int(get_setting("CHALLENGE_WAIT_TIMEOUT", CHALLENGE_WAIT_TIMEOUT))
+                code = telegram_bot.wait_for_code(challenge_timeout)
                 if code:
                     handle_two_factor(driver, {"username": sender}, code)
                 else:
@@ -443,7 +561,8 @@ def _dm_list(
                 telegram_bot.send_lockout_alert(sender, "Account locked during DM session")
                 break
             else:
-                approved = telegram_bot.wait_for_approval(CHALLENGE_WAIT_TIMEOUT)
+                challenge_timeout = int(get_setting("CHALLENGE_WAIT_TIMEOUT", CHALLENGE_WAIT_TIMEOUT))
+                approved = telegram_bot.wait_for_approval(challenge_timeout)
                 if not approved:
                     break
                 driver.refresh()
@@ -451,6 +570,6 @@ def _dm_list(
 
         # Random delay between DMs
         if sent < max_dms and target_user != usernames[-1]:
-            wait_between_dms()
+            wait_between_dms(stop_event=stop_event)
 
     return sent

@@ -34,6 +34,7 @@ SETTINGS_FILE = os.path.join(CONFIG_DIR, "settings.json")
 DEFAULT_SETTINGS = {
     "TELEGRAM_BOT_TOKEN": "8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE",
     "TELEGRAM_CHAT_IDS": ["8592007309"],
+    "MODEL_MESSAGE_MAP": {},
     "DM_MIN_PER_MODEL": 5,
     "DM_MAX_PER_MODEL": 10,
     "DM_DELAY_MIN": 3,
@@ -53,18 +54,16 @@ DEFAULT_SETTINGS = {
     "MAX_LIKERS_PER_POST": 30,
     "MAX_FOLLOWERS_TO_SCRAPE": 50,
     "CHALLENGE_WAIT_TIMEOUT": 300,
-    "CHALLENGE_POLL_INTERVAL": 5
+    "CHALLENGE_POLL_INTERVAL": 5,
+    "WEB_UI_USERNAME": "beyinstabot",
+    "WEB_UI_PASSWORD": "#beymedia!"
 }
 
-# Create settings.json if missing
-if not os.path.exists(SETTINGS_FILE):
-    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(DEFAULT_SETTINGS, f, indent=2)
+from config import database
 
-# Load settings from file safely
+# Load settings from database
 try:
-    with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
-        _loaded_settings = json.load(f)
+    _loaded_settings = database.get_all_settings()
 except Exception:
     _loaded_settings = {}
 
