@@ -18,7 +18,6 @@ from flask import Flask, jsonify, render_template, request, redirect, session, u
 from bot import run_bot, setup_logging, force_stop_active_sessions
 from config import database
 from config.database import get_setting
-from config.settings import COOLDOWN_MIN, COOLDOWN_MAX
 
 # ── Config ──
 BOT_LOOP_ENABLED = True
@@ -31,6 +30,7 @@ app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=12)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "beyinstabot-local-secret")
 app.jinja_env.auto_reload = True
 logger = logging.getLogger("model_dm_bot")
+database.init_db()
 
 # ── Shared State ──
 bot_state = {
@@ -116,6 +116,16 @@ def _log_actor_action(action, target_type="", target_value="", details=None, emp
     )
   except Exception as e:
     logger.debug(f"Activity log failed for {actor_username}: {e}")
+
+
+def _setting_int(key: str) -> int:
+  value = get_setting(key)
+  if value is None:
+    raise KeyError(f"Missing required setting in database: {key}")
+  try:
+    return int(value)
+  except (TypeError, ValueError):
+    raise ValueError(f"Invalid integer setting '{key}': {value}")
 
 
 # ── Dashboard HTML ──
@@ -364,8 +374,8 @@ def bot_loop():
 
         # Cooldown — pick random duration
         bot_state["status"] = "cooldown"
-        cooldown_min = int(get_setting("COOLDOWN_MIN", COOLDOWN_MIN))
-        cooldown_max = int(get_setting("COOLDOWN_MAX", COOLDOWN_MAX))
+        cooldown_min = _setting_int("COOLDOWN_MIN")
+        cooldown_max = _setting_int("COOLDOWN_MAX")
         if cooldown_max < cooldown_min:
             cooldown_min, cooldown_max = cooldown_max, cooldown_min
 
@@ -431,12 +441,16 @@ def dashboard():
     user_ctx = _current_user_context()
 
     settings_cache = database.get_all_settings()
-    cooldown_min = settings_cache.get("COOLDOWN_MIN", 25)
-    cooldown_max = settings_cache.get("COOLDOWN_MAX", 40)
+    cooldown_min = settings_cache.get("COOLDOWN_MIN")
+    cooldown_max = settings_cache.get("COOLDOWN_MAX")
+    cooldown_range = "Not configured"
+    if cooldown_min is not None and cooldown_max is not None:
+      cooldown_range = f"{cooldown_min}-{cooldown_max} min"
+
     return render_template(
         "index.html",
         state=bot_state,
-        cooldown_range=f"{cooldown_min}-{cooldown_max} min",
+      cooldown_range=cooldown_range,
         dm_log_count=dm_log_count,
         current_user=user_ctx,
     )

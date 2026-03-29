@@ -1,9 +1,9 @@
 """
 Global settings for the Instagram Model DM Bot.
-Loads dynamically from settings.json to support Web UI changes.
+Static paths and URLs only.
+Runtime behavior settings are stored in the database.
 """
 import os
-import json
 
 # ──────────────────────────────────────────────
 # Paths
@@ -24,53 +24,6 @@ MODELS_FILE = os.path.join(CONFIG_DIR, "models.json")
 MESSAGES_FILE = os.path.join(CONFIG_DIR, "messages.json")
 DM_LOG_FILE = os.path.join(DATA_DIR, "dm_log.json")
 SETTINGS_FILE = os.path.join(CONFIG_DIR, "settings.json")
-
-
-# ──────────────────────────────────────────────
-# Dynamic Settings Registration
-# ──────────────────────────────────────────────
-# These are the default values. If settings.json doesn't exist, it will be
-# created automatically with these defaults.
-DEFAULT_SETTINGS = {
-    "TELEGRAM_BOT_TOKEN": "8671289565:AAFxbYRSVvPkFRUaymh2T7BG6hyE-oIXXnE",
-    "TELEGRAM_CHAT_IDS": ["128663994"],
-    "MODEL_MESSAGE_MAP": {},
-    "DM_MIN_PER_MODEL": 5,
-    "DM_MAX_PER_MODEL": 10,
-    "DM_DELAY_MIN": 3,
-    "DM_DELAY_MAX": 7,
-    "ACTION_DELAY_MIN": 2,
-    "ACTION_DELAY_MAX": 5,
-    "TYPING_DELAY_MIN": 0.05,
-    "TYPING_DELAY_MAX": 0.15,
-    "ACCOUNT_SWITCH_DELAY_MIN": 10,
-    "ACCOUNT_SWITCH_DELAY_MAX": 20,
-    "MODEL_SWITCH_DELAY_MIN": 15,
-    "MODEL_SWITCH_DELAY_MAX": 20,
-    "COOLDOWN_MIN": 25,
-    "COOLDOWN_MAX": 40,
-    "POST_AGE_PRIORITY_HOURS": 24,
-    "MAX_POSTS_TO_CHECK": 6,
-    "MAX_LIKERS_PER_POST": 30,
-    "MAX_FOLLOWERS_TO_SCRAPE": 50,
-    "CHALLENGE_WAIT_TIMEOUT": 300,
-    "CHALLENGE_POLL_INTERVAL": 5,
-    "WEB_UI_USERNAME": "beyinstabot",
-    "WEB_UI_PASSWORD": "#beymedia!"
-}
-
-from config import database
-
-# Load settings from database
-try:
-    _loaded_settings = database.get_all_settings()
-except Exception:
-    _loaded_settings = {}
-
-# Expose all settings seamlessly back to the Python globals
-# so imports like `from config.settings import DM_DELAY_MIN` continue to work.
-for _key, _default_val in DEFAULT_SETTINGS.items():
-    globals()[_key] = _loaded_settings.get(_key, _default_val)
 
 # ──────────────────────────────────────────────
 # Static URLs

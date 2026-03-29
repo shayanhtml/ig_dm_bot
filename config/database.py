@@ -8,6 +8,37 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DATABASE_PATH = os.path.join(DATA_DIR, "app_data.db")
 
+# Canonical setting keys live in the database. These values are only used to
+# seed missing rows during initialization.
+DEFAULT_DB_SETTINGS = {
+    "TELEGRAM_BOT_TOKEN": "8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE",
+    "TELEGRAM_CHAT_IDS": ["8592007309"],
+    "MODEL_MESSAGE_MAP": {},
+    "MODEL_MESSAGE_META": {},
+    "DM_MIN_PER_MODEL": 5,
+    "DM_MAX_PER_MODEL": 10,
+    "DM_DELAY_MIN": 3,
+    "DM_DELAY_MAX": 7,
+    "ACTION_DELAY_MIN": 2,
+    "ACTION_DELAY_MAX": 5,
+    "TYPING_DELAY_MIN": 0.05,
+    "TYPING_DELAY_MAX": 0.15,
+    "ACCOUNT_SWITCH_DELAY_MIN": 10,
+    "ACCOUNT_SWITCH_DELAY_MAX": 20,
+    "MODEL_SWITCH_DELAY_MIN": 15,
+    "MODEL_SWITCH_DELAY_MAX": 20,
+    "COOLDOWN_MIN": 25,
+    "COOLDOWN_MAX": 40,
+    "POST_AGE_PRIORITY_HOURS": 24,
+    "MAX_POSTS_TO_CHECK": 6,
+    "MAX_LIKERS_PER_POST": 30,
+    "MAX_FOLLOWERS_TO_SCRAPE": 50,
+    "CHALLENGE_WAIT_TIMEOUT": 300,
+    "CHALLENGE_POLL_INTERVAL": 5,
+    "WEB_UI_USERNAME": "beyinstabot",
+    "WEB_UI_PASSWORD": "#beymedia!",
+}
+
 def _get_connection():
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
@@ -29,6 +60,21 @@ def _get_setting_from_conn(conn, key: str, default=None):
         return default
 
 
+def _ensure_default_settings(conn):
+    for key, value in DEFAULT_DB_SETTINGS.items():
+        exists = conn.execute(
+            "SELECT 1 FROM settings WHERE key = ?",
+            (key,),
+        ).fetchone()
+        if exists:
+            continue
+
+        conn.execute(
+            "INSERT INTO settings (key, value_json) VALUES (?, ?)",
+            (key, json.dumps(value)),
+        )
+
+
 def _ensure_account_owner_column(conn):
     if "owner_username" in _table_columns(conn, "accounts"):
         return
@@ -46,8 +92,12 @@ def _ensure_master_user(conn):
         if master_row:
             return
 
-    seed_username = str(_get_setting_from_conn(conn, "WEB_UI_USERNAME", "beyinstabot") or "").strip().lower()
-    seed_password = str(_get_setting_from_conn(conn, "WEB_UI_PASSWORD", "#beymedia!") or "")
+    seed_username = str(
+        _get_setting_from_conn(conn, "WEB_UI_USERNAME", DEFAULT_DB_SETTINGS["WEB_UI_USERNAME"]) or ""
+    ).strip().lower()
+    seed_password = str(
+        _get_setting_from_conn(conn, "WEB_UI_PASSWORD", DEFAULT_DB_SETTINGS["WEB_UI_PASSWORD"]) or ""
+    )
     if not seed_username:
         seed_username = "beyinstabot"
     if not seed_password:
@@ -105,6 +155,8 @@ def init_db():
                 value_json TEXT NOT NULL
             )
         """)
+
+        _ensure_default_settings(conn)
         
         # DM Logs Table
         conn.execute("""
@@ -507,6 +559,13 @@ def get_all_settings():
 def get_setting(key, default=None):
     all_sets = get_all_settings()
     return all_sets.get(key, default)
+
+
+def get_required_setting(key):
+    value = get_setting(key, None)
+    if value is None:
+        raise KeyError(f"Missing required setting in database: {key}")
+    return value
 
 def save_settings(settings_dict):
     conn = _get_connection()

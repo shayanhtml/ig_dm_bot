@@ -13,10 +13,8 @@ from selenium.common.exceptions import TimeoutException
 
 from config.settings import (
     INSTAGRAM_BASE_URL,
-    MAX_FOLLOWERS_TO_SCRAPE,
-    ACTION_DELAY_MIN, ACTION_DELAY_MAX,
 )
-from config.database import get_setting
+from config.database import get_required_setting
 from core.auth import human_delay
 
 logger = logging.getLogger("model_dm_bot")
@@ -35,7 +33,7 @@ def get_followers(driver, model_username: str, already_dmd: set, max_count: int 
     Returns:
         List of follower usernames (deduplicated against already_dmd)
     """
-    max_count = max_count or int(get_setting("MAX_FOLLOWERS_TO_SCRAPE", MAX_FOLLOWERS_TO_SCRAPE))
+    max_count = max_count or int(get_required_setting("MAX_FOLLOWERS_TO_SCRAPE"))
     profile_url = f"{INSTAGRAM_BASE_URL}/{model_username}/"
 
     logger.info(f"[Followers] Opening @{model_username}'s followers list")

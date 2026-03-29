@@ -10,15 +10,9 @@ import random
 import logging
 import threading
 
-from config.settings import (
-    DM_MIN_PER_MODEL, DM_MAX_PER_MODEL,
-    ACCOUNT_SWITCH_DELAY_MIN, ACCOUNT_SWITCH_DELAY_MAX,
-    MODEL_SWITCH_DELAY_MIN, MODEL_SWITCH_DELAY_MAX,
-    CHALLENGE_WAIT_TIMEOUT,
-    LOGS_DIR,
-)
+from config.settings import LOGS_DIR
 from config import database
-from config.database import get_setting
+from config.database import get_required_setting
 from core.browser import create_driver, close_driver
 from core.cookie_manager import save_cookies, refresh_cookies
 from core.auth import (
@@ -34,6 +28,24 @@ from telegram.bot import telegram_bot
 logger = logging.getLogger("model_dm_bot")
 _active_drivers = set()
 _active_drivers_lock = threading.Lock()
+
+
+def _setting_int(key: str) -> int:
+    """Read an integer setting from the database."""
+    value = get_required_setting(key)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid integer setting '{key}': {value}")
+
+
+def _setting_float(key: str) -> float:
+    """Read a float setting from the database."""
+    value = get_required_setting(key)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid numeric setting '{key}': {value}")
 
 
 def _interruptible_sleep(seconds: float, stop_event=None, tick: float = 0.5) -> bool:
@@ -152,6 +164,7 @@ def _messages_for_model(model_username: str, default_messages: list, model_messa
 
 def run_bot(stop_event=None, account_owner=None):
     """Main bot orchestration loop."""
+    database.init_db()
     setup_logging()
 
     logger.info("=" * 60)
@@ -168,7 +181,7 @@ def run_bot(stop_event=None, account_owner=None):
         models = database.get_models()
         messages = _normalize_message_list(database.get_messages())
         model_message_map = _normalize_model_message_map(
-            database.get_setting("MODEL_MESSAGE_MAP", {})
+            database.get_setting("MODEL_MESSAGE_MAP") or {}
         )
     except Exception as e:
         logger.error(f"Failed to load config from database: {e}")
@@ -297,8 +310,8 @@ def run_bot(stop_event=None, account_owner=None):
                         break
 
                     # Delay before next model
-                    model_delay_min = float(get_setting("MODEL_SWITCH_DELAY_MIN", MODEL_SWITCH_DELAY_MIN))
-                    model_delay_max = float(get_setting("MODEL_SWITCH_DELAY_MAX", MODEL_SWITCH_DELAY_MAX))
+                    model_delay_min = _setting_float("MODEL_SWITCH_DELAY_MIN")
+                    model_delay_max = _setting_float("MODEL_SWITCH_DELAY_MAX")
                     if model_delay_max < model_delay_min:
                         model_delay_min, model_delay_max = model_delay_max, model_delay_min
 
@@ -319,8 +332,8 @@ def run_bot(stop_event=None, account_owner=None):
 
             # Delay before switching accounts
             if account != accounts[-1] and not (stop_event and stop_event.is_set()):
-                account_delay_min = float(get_setting("ACCOUNT_SWITCH_DELAY_MIN", ACCOUNT_SWITCH_DELAY_MIN))
-                account_delay_max = float(get_setting("ACCOUNT_SWITCH_DELAY_MAX", ACCOUNT_SWITCH_DELAY_MAX))
+                account_delay_min = _setting_float("ACCOUNT_SWITCH_DELAY_MIN")
+                account_delay_max = _setting_float("ACCOUNT_SWITCH_DELAY_MAX")
                 if account_delay_max < account_delay_min:
                     account_delay_min, account_delay_max = account_delay_max, account_delay_min
 
@@ -372,9 +385,11 @@ def _perform_login(driver, account: dict) -> bool:
     log_and_telegram(f"🔒 Challenge for @{username}: {challenge.value}")
     telegram_bot.send_challenge_alert(username, challenge.value, driver.current_url)
 
+    challenge_timeout = _setting_int("CHALLENGE_WAIT_TIMEOUT")
+
     if challenge == ChallengeType.TWO_FACTOR:
         # Wait for employee to send code via Telegram
-        code = telegram_bot.wait_for_code(CHALLENGE_WAIT_TIMEOUT)
+        code = telegram_bot.wait_for_code(challenge_timeout)
         if code:
             success = handle_two_factor(driver, account, code)
             if success:
@@ -385,7 +400,7 @@ def _perform_login(driver, account: dict) -> bool:
                 if post_2fa_challenge in (ChallengeType.SUSPICIOUS_LOGIN, ChallengeType.CHECKPOINT, ChallengeType.LOCKED):
                     log_and_telegram(f"🔒 Post-2FA Verification detected: {post_2fa_challenge.value}")
                     telegram_bot.send_challenge_alert(username, post_2fa_challenge.value, driver.current_url)
-                    approved = telegram_bot.wait_for_approval(CHALLENGE_WAIT_TIMEOUT)
+                    approved = telegram_bot.wait_for_approval(challenge_timeout)
                     if approved:
                         driver.refresh()
                         human_delay(3, 5)
@@ -400,7 +415,7 @@ def _perform_login(driver, account: dict) -> bool:
     elif challenge in (ChallengeType.SUSPICIOUS_LOGIN, ChallengeType.CHECKPOINT, ChallengeType.LOCKED):
         # Wait for employee to manually approve (including Suspended/Locked)
         telegram_bot.send_challenge_alert(username, challenge.value, driver.current_url)
-        approved = telegram_bot.wait_for_approval(CHALLENGE_WAIT_TIMEOUT)
+        approved = telegram_bot.wait_for_approval(challenge_timeout)
         if approved:
             # Refresh the page and check login
             driver.refresh()
@@ -428,8 +443,8 @@ def _process_model(
     Returns number of DMs successfully sent.
     """
     username = account["username"]
-    dm_min = int(get_setting("DM_MIN_PER_MODEL", DM_MIN_PER_MODEL))
-    dm_max = int(get_setting("DM_MAX_PER_MODEL", DM_MAX_PER_MODEL))
+    dm_min = _setting_int("DM_MIN_PER_MODEL")
+    dm_max = _setting_int("DM_MAX_PER_MODEL")
     if dm_max < dm_min:
         dm_min, dm_max = dm_max, dm_min
     dm_target = random.randint(dm_min, dm_max)
@@ -464,7 +479,7 @@ def _process_model(
         age_label = f"{post['age_hours']}h" if post['age_hours'] < 999 else "unknown"
 
         # Skip posts older than 24 hours
-        post_age_limit = int(get_setting("POST_AGE_PRIORITY_HOURS", 24))
+        post_age_limit = _setting_int("POST_AGE_PRIORITY_HOURS")
         if post['age_hours'] > post_age_limit:
             log_and_telegram(f"[{username}] ⏭️ Skipping post ({age_label} old) — too old: {post['url'][-20:]}")
             continue
@@ -551,7 +566,7 @@ def _dm_list(
             telegram_bot.send_challenge_alert(sender, challenge.value)
 
             if challenge == ChallengeType.TWO_FACTOR:
-                challenge_timeout = int(get_setting("CHALLENGE_WAIT_TIMEOUT", CHALLENGE_WAIT_TIMEOUT))
+                challenge_timeout = _setting_int("CHALLENGE_WAIT_TIMEOUT")
                 code = telegram_bot.wait_for_code(challenge_timeout)
                 if code:
                     handle_two_factor(driver, {"username": sender}, code)
@@ -561,7 +576,7 @@ def _dm_list(
                 telegram_bot.send_lockout_alert(sender, "Account locked during DM session")
                 break
             else:
-                challenge_timeout = int(get_setting("CHALLENGE_WAIT_TIMEOUT", CHALLENGE_WAIT_TIMEOUT))
+                challenge_timeout = _setting_int("CHALLENGE_WAIT_TIMEOUT")
                 approved = telegram_bot.wait_for_approval(challenge_timeout)
                 if not approved:
                     break

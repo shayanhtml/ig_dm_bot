@@ -18,13 +18,20 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 
 from config.settings import (
     INSTAGRAM_LOGIN_URL, INSTAGRAM_BASE_URL,
-    ACTION_DELAY_MIN, ACTION_DELAY_MAX,
-    TYPING_DELAY_MIN, TYPING_DELAY_MAX,
-    CHALLENGE_WAIT_TIMEOUT,
+    LOGS_DIR,
 )
+from config.database import get_required_setting
 from core.cookie_manager import save_cookies, load_cookies, delete_cookies, cookies_exist
 
 logger = logging.getLogger("model_dm_bot")
+
+
+def _setting_float(key: str) -> float:
+    value = get_required_setting(key)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid numeric setting '{key}': {value}")
 
 
 class ChallengeType(Enum):
@@ -38,16 +45,23 @@ class ChallengeType(Enum):
 
 def human_delay(min_t=None, max_t=None):
     """Random delay to simulate human behavior."""
-    min_t = min_t or ACTION_DELAY_MIN
-    max_t = max_t or ACTION_DELAY_MAX
+    min_t = min_t if min_t is not None else _setting_float("ACTION_DELAY_MIN")
+    max_t = max_t if max_t is not None else _setting_float("ACTION_DELAY_MAX")
+    if max_t < min_t:
+        min_t, max_t = max_t, min_t
     time.sleep(random.uniform(min_t, max_t))
 
 
 def type_like_human(element, text):
     """Type text character by character with random delays."""
+    typing_min = _setting_float("TYPING_DELAY_MIN")
+    typing_max = _setting_float("TYPING_DELAY_MAX")
+    if typing_max < typing_min:
+        typing_min, typing_max = typing_max, typing_min
+
     for char in text:
         element.send_keys(char)
-        time.sleep(random.uniform(TYPING_DELAY_MIN, TYPING_DELAY_MAX))
+        time.sleep(random.uniform(typing_min, typing_max))
 
 
 def detect_challenge(driver) -> ChallengeType:
@@ -290,7 +304,6 @@ def login_with_credentials(driver, account: dict) -> bool:
     except TimeoutException as e:
         logger.error(f"[{username}] Timeout waiting for login elements: {e}")
         try:
-            from config.settings import LOGS_DIR
             screenshot_path = os.path.join(LOGS_DIR, f"login_error_{username}.png")
             driver.save_screenshot(screenshot_path)
             logger.info(f"[{username}] Error screenshot saved to: {screenshot_path}")

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - BEY IG DM BOT</title>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -15,10 +15,6 @@
       --primary: #D89B02;
       --danger: #ef4444;
       --gradient: linear-gradient(135deg, #D89B02 0%, #f0ba2f 55%, #d18d00 100%);
-      --safe-top: env(safe-area-inset-top, 0px);
-      --safe-right: env(safe-area-inset-right, 0px);
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
-      --safe-left: env(safe-area-inset-left, 0px);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Manrope', sans-serif; }
@@ -26,7 +22,7 @@
     body {
       position: relative;
       isolation: isolate;
-      min-height: 100dvh;
+      min-height: 100vh;
       display: grid;
       place-items: center;
       color: var(--text);
@@ -34,7 +30,7 @@
         radial-gradient(900px 500px at -20% -15%, rgba(216,155,2,0.26), transparent 60%),
         radial-gradient(900px 500px at 120% 110%, rgba(41,41,41,0.45), transparent 60%),
         linear-gradient(160deg, #000000 0%, #090909 45%, #131313 100%);
-      padding: calc(1rem + var(--safe-top)) calc(1rem + var(--safe-right)) calc(1rem + var(--safe-bottom)) calc(1rem + var(--safe-left));
+      padding: 1rem;
     }
 
     body::before {
@@ -126,7 +122,7 @@
       border-radius: 10px;
       padding: 0.72rem 0.78rem;
       color: var(--text);
-      font-size: 1rem;
+      font-size: 0.95rem;
       outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
@@ -170,28 +166,6 @@
       text-align: center;
       color: var(--text-muted);
       font-size: 0.78rem;
-    }
-
-    @supports (-webkit-touch-callout: none) {
-      body { min-height: -webkit-fill-available; }
-    }
-
-    @media (max-width: 520px) {
-      body {
-        place-items: end center;
-        padding: calc(0.65rem + var(--safe-top)) calc(0.65rem + var(--safe-right)) calc(0.65rem + var(--safe-bottom)) calc(0.65rem + var(--safe-left));
-      }
-
-      .shell {
-        width: 100%;
-        border-radius: 12px;
-        padding: 1.1rem;
-      }
-
-      h1 { font-size: 1.2rem; }
-      p { font-size: 0.86rem; margin-bottom: 1.05rem; }
-      input, .btn { min-height: 44px; }
-      .btn { font-size: 0.9rem; }
     }
   </style>
 </head>

@@ -10,7 +10,8 @@ import requests
 from collections import deque
 from datetime import datetime
 
-from config.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_IDS
+from config import database
+from config.database import get_setting
 
 logger = logging.getLogger("model_dm_bot")
 
@@ -24,16 +25,9 @@ class TelegramBot:
     """
 
     def __init__(self, token: str = None, chat_ids: list = None):
-        self.token = token or TELEGRAM_BOT_TOKEN
-        
-        if chat_ids is not None:
-            self.chat_ids = [str(c) for c in chat_ids]
-        else:
-            if isinstance(TELEGRAM_CHAT_IDS, str):
-                self.chat_ids = [cid.strip() for cid in TELEGRAM_CHAT_IDS.split(",") if cid.strip()]
-            else:
-                self.chat_ids = [str(cid) for cid in TELEGRAM_CHAT_IDS if cid]
-        self.base_url = f"https://api.telegram.org/bot{self.token}"
+        self.token = str(token or "").strip()
+        self.chat_ids = self._normalize_chat_ids(chat_ids)
+        self.base_url = f"https://api.telegram.org/bot{self.token}" if self.token else ""
 
         self.last_update_id = 0
         self.code_queue = queue.Queue()        # Queue for 2FA codes
@@ -53,12 +47,39 @@ class TelegramBot:
         self._polling = False
         self._poll_thread = None
 
+    @staticmethod
+    def _normalize_chat_ids(raw_chat_ids) -> list:
+        if isinstance(raw_chat_ids, str):
+            return [cid.strip() for cid in raw_chat_ids.split(",") if cid.strip()]
+        if isinstance(raw_chat_ids, list):
+            return [str(cid).strip() for cid in raw_chat_ids if str(cid).strip()]
+        return []
+
+    def _reload_config_from_db(self):
+        """Refresh bot token/chat IDs from database settings."""
+        try:
+            database.init_db()
+            raw_token = get_setting("TELEGRAM_BOT_TOKEN")
+            raw_chat_ids = get_setting("TELEGRAM_CHAT_IDS")
+
+            if raw_token is not None:
+                self.token = str(raw_token).strip()
+                self.base_url = f"https://api.telegram.org/bot{self.token}" if self.token else ""
+
+            if raw_chat_ids is not None:
+                self.chat_ids = self._normalize_chat_ids(raw_chat_ids)
+        except Exception as e:
+            logger.warning(f"[Telegram] Failed to load config from DB: {e}")
+
     # ──────────────────────────────────────────
     # Sending Messages
     # ──────────────────────────────────────────
 
     def send(self, message: str):
         """Send a message to all configured chats."""
+        if not self.token or not self.chat_ids:
+            self._reload_config_from_db()
+
         if not self.token or not self.chat_ids:
             return
         
@@ -172,6 +193,11 @@ class TelegramBot:
 
     def start_polling(self):
         """Start the background polling thread."""
+        self._reload_config_from_db()
+        if not self.token:
+            logger.warning("[Telegram] Polling not started: TELEGRAM_BOT_TOKEN is missing in DB settings")
+            return
+
         if self._polling:
             return
         self._polling = True

@@ -15,13 +15,19 @@ from selenium.common.exceptions import TimeoutException
 
 from config.settings import (
     INSTAGRAM_BASE_URL,
-    DM_DELAY_MIN, DM_DELAY_MAX,
-    ACTION_DELAY_MIN, ACTION_DELAY_MAX,
 )
-from config.database import get_setting
+from config.database import get_required_setting
 from core.auth import human_delay
 
 logger = logging.getLogger("model_dm_bot")
+
+
+def _setting_float(key: str) -> float:
+    value = get_required_setting(key)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid numeric setting '{key}': {value}")
 
 
 class DMResult:
@@ -249,8 +255,8 @@ def _dismiss_popups(driver):
 
 def wait_between_dms(stop_event=None):
     """Random delay between DMs to appear human-like."""
-    dm_delay_min = float(get_setting("DM_DELAY_MIN", DM_DELAY_MIN))
-    dm_delay_max = float(get_setting("DM_DELAY_MAX", DM_DELAY_MAX))
+    dm_delay_min = _setting_float("DM_DELAY_MIN")
+    dm_delay_max = _setting_float("DM_DELAY_MAX")
     if dm_delay_max < dm_delay_min:
         dm_delay_min, dm_delay_max = dm_delay_max, dm_delay_min
 

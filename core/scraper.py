@@ -15,15 +15,19 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 from config.settings import (
     INSTAGRAM_BASE_URL,
-    MAX_POSTS_TO_CHECK,
-    MAX_LIKERS_PER_POST,
-    POST_AGE_PRIORITY_HOURS,
-    ACTION_DELAY_MIN, ACTION_DELAY_MAX,
 )
-from config.database import get_setting
+from config.database import get_required_setting
 from core.auth import human_delay
 
 logger = logging.getLogger("model_dm_bot")
+
+
+def _setting_int(key: str) -> int:
+    value = get_required_setting(key)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid integer setting '{key}': {value}")
 
 
 def get_recent_posts(driver, model_username: str) -> list:
@@ -54,7 +58,7 @@ def get_recent_posts(driver, model_username: str) -> list:
         pass
 
     # Wait for posts grid to load — match both /p/ and /reel/ links
-    max_posts_to_check = int(get_setting("MAX_POSTS_TO_CHECK", MAX_POSTS_TO_CHECK))
+    max_posts_to_check = _setting_int("MAX_POSTS_TO_CHECK")
     posts = []
     post_xpath = "//a[contains(@href, '/p/') or contains(@href, '/reel/')]"
     try:
@@ -238,7 +242,7 @@ def get_post_interactors(driver, post_url: str, already_dmd: set, model_username
 
     # 4. Scrape likers by clicking "likes" count
     try:
-        max_likers = int(get_setting("MAX_LIKERS_PER_POST", MAX_LIKERS_PER_POST))
+        max_likers = _setting_int("MAX_LIKERS_PER_POST")
         likers = _scrape_likers(driver, already_dmd, max_likers)
         usernames.update(likers)
     except Exception as e:
@@ -347,16 +351,18 @@ def sort_posts_by_priority(posts: list, driver) -> list:
         post["age_hours"] = get_post_age_hours(driver)
         logger.info(f"[Scraper] Post {post['url'][-15:]} age: {post['age_hours']}h")
 
+    priority_hours = _setting_int("POST_AGE_PRIORITY_HOURS")
+
     # Sort: priority posts first, then by age ascending
-    priority = [p for p in posts if p["age_hours"] < POST_AGE_PRIORITY_HOURS]
-    non_priority = [p for p in posts if p["age_hours"] >= POST_AGE_PRIORITY_HOURS]
+    priority = [p for p in posts if p["age_hours"] < priority_hours]
+    non_priority = [p for p in posts if p["age_hours"] >= priority_hours]
 
     priority.sort(key=lambda x: x["age_hours"])
     non_priority.sort(key=lambda x: x["age_hours"])
 
     result = priority + non_priority
     if priority:
-        logger.info(f"[Scraper] 🔥 {len(priority)} priority posts (< {POST_AGE_PRIORITY_HOURS}h old)")
+        logger.info(f"[Scraper] 🔥 {len(priority)} priority posts (< {priority_hours}h old)")
 
     return result
 
