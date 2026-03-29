@@ -32,8 +32,8 @@ SETTINGS_FILE = os.path.join(CONFIG_DIR, "settings.json")
 # These are the default values. If settings.json doesn't exist, it will be
 # created automatically with these defaults.
 DEFAULT_SETTINGS = {
-    "TELEGRAM_BOT_TOKEN": "8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE",
-    "TELEGRAM_CHAT_IDS": ["8592007309"],
+    "TELEGRAM_BOT_TOKEN": "8671289565:AAFxbYRSVvPkFRUaymh2T7BG6hyE-oIXXnE",
+    "TELEGRAM_CHAT_IDS": ["128663994"],
     "MODEL_MESSAGE_MAP": {},
     "DM_MIN_PER_MODEL": 5,
     "DM_MAX_PER_MODEL": 10,
