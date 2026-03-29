@@ -11,8 +11,8 @@ DATABASE_PATH = os.path.join(DATA_DIR, "app_data.db")
 # Canonical setting keys live in the database. These values are only used to
 # seed missing rows during initialization.
 DEFAULT_DB_SETTINGS = {
-    "TELEGRAM_BOT_TOKEN": "8770603555:AAFZ50LilZHKigpr0wy2jawAjOI3m6qMmoE",
-    "TELEGRAM_CHAT_IDS": ["8592007309"],
+    "TELEGRAM_BOT_TOKEN": "8671289565:AAFxbYRSVvPkFRUaymh2T7BG6hyE-oIXXnE",
+    "TELEGRAM_CHAT_IDS": ["128663994"],
     "MODEL_MESSAGE_MAP": {},
     "MODEL_MESSAGE_META": {},
     "DM_MIN_PER_MODEL": 5,
