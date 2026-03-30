@@ -942,6 +942,13 @@
       return String(details);
     }
 
+    function isEditingModelMessages() {
+      const active = document.activeElement;
+      if (!active) return false;
+      const activeId = String(active.id || '');
+      return activeId.startsWith('mm_model_') || activeId.startsWith('mm_msgs_');
+    }
+
     function renderEmployeeActivity() {
       const tbody = document.querySelector('#employeeActivityTable tbody');
       if (!tbody) return;
@@ -1046,7 +1053,10 @@
 
         if (globalIsMaster && globalModelMessages.length) {
           backfillModelMessageMetaFromActivity();
-          renderModelMessages();
+          if (!isEditingModelMessages()) {
+            syncModelMessagesFromDom();
+            renderModelMessages();
+          }
         }
       } catch (e) {
         console.error('Failed to load employee activity', e);
@@ -1069,7 +1079,10 @@
 
         if (globalIsMaster && globalModelMessages.length) {
           backfillModelMessageMetaFromActivity();
-          renderModelMessages();
+          if (!isEditingModelMessages()) {
+            syncModelMessagesFromDom();
+            renderModelMessages();
+          }
         }
       } catch (e) {
         console.error('Failed to load all activity', e);
