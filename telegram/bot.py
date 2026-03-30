@@ -99,6 +99,7 @@ class TelegramBot:
 
     def send_startup(self):
         """Send bot startup notification."""
+        self.start_time = time.time()
         self.send(
             "🚀 *MODEL DM BOT STARTED*\n\n"
             f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}\n"
@@ -146,7 +147,7 @@ class TelegramBot:
             f"🏁 *SESSION COMPLETE*\n\n"
             f"✉️ Total DMs: {total_dms}\n"
             f"🎯 Models: {models_done}\n"
-            f"⏰ Duration: {self._uptime()}"
+            f"⏰ Started : {self._started_ago()}"
         )
 
     def send_error(self, error: str):
@@ -301,6 +302,21 @@ class TelegramBot:
         h, r = divmod(elapsed, 3600)
         m, s = divmod(r, 60)
         return f"{int(h)}h {int(m)}m {int(s)}s"
+
+    def _started_ago(self) -> str:
+        """Get a compact relative start string (e.g. 7h ago)."""
+        elapsed = max(0, int(time.time() - self.start_time))
+        days, rem = divmod(elapsed, 86400)
+        hours, rem = divmod(rem, 3600)
+        minutes, _ = divmod(rem, 60)
+
+        if days > 0:
+            return f"{days}d ago"
+        if hours > 0:
+            return f"{hours}h ago"
+        if minutes > 0:
+            return f"{minutes}m ago"
+        return "just now"
 
     def add_log(self, message: str):
         """Add a log line to the recent logs buffer."""
