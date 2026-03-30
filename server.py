@@ -573,8 +573,8 @@ def api_save_config(target):
               employees_only=True,
             )
         elif target == "models":
-          if not can_edit_targets:
-            return jsonify({"success": False, "error": "Not allowed to update models"}), 403
+            if not can_edit_targets:
+                return jsonify({"success": False, "error": "Not allowed to update models"}), 403
             if not isinstance(payload, list):
                 return jsonify({"success": False, "error": "Models payload must be a list"}), 400
             clean_models = []
@@ -586,16 +586,16 @@ def api_save_config(target):
                     continue
                 seen_models.add(key)
                 clean_models.append(name)
-            database.save_models(payload)
+            database.save_models(clean_models)
             _log_actor_action(
-              "update_models",
-              target_type="config",
-              target_value="models",
-              details={
-                "model_count": len(clean_models),
-                "model_names": ", ".join(clean_models[:10]) + (" ..." if len(clean_models) > 10 else ""),
-              },
-              employees_only=False,
+                "update_models",
+                target_type="config",
+                target_value="models",
+                details={
+                    "model_count": len(clean_models),
+                    "model_names": ", ".join(clean_models[:10]) + (" ..." if len(clean_models) > 10 else ""),
+                },
+                employees_only=False,
             )
         elif target == "messages":
             if not can_edit_targets:
@@ -606,16 +606,16 @@ def api_save_config(target):
             sample_messages = "; ".join(clean_messages[:3])
             if len(sample_messages) > 120:
                 sample_messages = sample_messages[:117] + "..."
-            database.save_messages(payload)
+            database.save_messages(clean_messages)
             _log_actor_action(
-              "update_messages",
-              target_type="config",
-              target_value="messages",
-              details={
-                "message_count": len(clean_messages),
-                "message_sample": sample_messages,
-              },
-              employees_only=False,
+                "update_messages",
+                target_type="config",
+                target_value="messages",
+                details={
+                    "message_count": len(clean_messages),
+                    "message_sample": sample_messages,
+                },
+                employees_only=False,
             )
         elif target == "model_message_map":
             if not can_edit_targets:

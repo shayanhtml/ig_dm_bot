@@ -183,6 +183,10 @@ def run_bot(stop_event=None, account_owner=None):
         model_message_map = _normalize_model_message_map(
             database.get_setting("MODEL_MESSAGE_MAP") or {}
         )
+
+        # If explicit model list is empty, derive targets from model-specific sets.
+        if not models and model_message_map:
+            models = sorted(model_message_map.keys())
     except Exception as e:
         logger.error(f"Failed to load config from database: {e}")
         return
@@ -194,7 +198,7 @@ def run_bot(stop_event=None, account_owner=None):
             logger.error("No accounts configured")
         return
     if not models:
-        logger.error("No models configured in models.json")
+        logger.error("No models configured in database")
         return
     if not messages and not model_message_map:
         logger.error("No messages configured (general or model-specific)")

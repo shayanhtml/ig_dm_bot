@@ -509,7 +509,7 @@ def get_models():
     conn = _get_connection()
     try:
         rows = conn.execute("SELECT username FROM models").fetchall()
-        return [r["username"] for r in rows]
+        return [str(r["username"] or "").strip() for r in rows if str(r["username"] or "").strip()]
     finally:
         conn.close()
 
@@ -518,7 +518,10 @@ def save_models(models_list):
     try:
         conn.execute("DELETE FROM models")
         for model in models_list:
-            conn.execute("INSERT OR IGNORE INTO models (username) VALUES (?)", (model.strip(),))
+            clean_model = str(model or "").strip().lstrip("@")
+            if not clean_model:
+                continue
+            conn.execute("INSERT OR IGNORE INTO models (username) VALUES (?)", (clean_model,))
         conn.commit()
     finally:
         conn.close()
@@ -528,7 +531,7 @@ def get_messages():
     conn = _get_connection()
     try:
         rows = conn.execute("SELECT text FROM messages").fetchall()
-        return [r["text"] for r in rows]
+        return [str(r["text"] or "").strip() for r in rows if str(r["text"] or "").strip()]
     finally:
         conn.close()
 
@@ -537,7 +540,10 @@ def save_messages(messages_list):
     try:
         conn.execute("DELETE FROM messages")
         for msg in messages_list:
-            conn.execute("INSERT OR IGNORE INTO messages (text) VALUES (?)", (msg.strip(),))
+            clean_msg = str(msg or "").strip()
+            if not clean_msg:
+                continue
+            conn.execute("INSERT OR IGNORE INTO messages (text) VALUES (?)", (clean_msg,))
         conn.commit()
     finally:
         conn.close()
