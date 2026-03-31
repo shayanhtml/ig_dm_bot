@@ -132,22 +132,16 @@ def _normalize_account_model_label(raw_label: str) -> str:
 
 
 def _models_for_account(account: dict, all_models: list) -> list:
-    """Return the target model list this account is allowed to process."""
-    label_key = _normalize_account_model_label(account.get("model_label", ""))
-    if not label_key:
-        return list(all_models)
+    """Return target models for an account.
 
-    matched = [m for m in all_models if _normalize_model_key(m) == label_key]
-    if matched:
-        return matched
-
-    # Fallback allows a labeled account to still target its explicit label text.
-    label_value = str(account.get("model_label", "")).strip().lstrip("@")
-    return [label_value] if label_value else []
+    Account labels are campaign/model-owner tags, not target usernames,
+    so they should not restrict which targets this account can process.
+    """
+    return list(all_models)
 
 
 def _build_account_pool_summary(accounts: list, models: list) -> str:
-    """Build Telegram text for per-model and generic account availability."""
+    """Build Telegram text for per-label and generic account availability."""
     display_by_key = {}
     for model_name in models:
         key = _normalize_model_key(model_name)
@@ -168,7 +162,7 @@ def _build_account_pool_summary(accounts: list, models: list) -> str:
         if label_key not in display_by_key:
             display_by_key[label_key] = label_raw or label_key
 
-    lines = ["Models:"]
+    lines = ["Model Labels:"]
     for key in sorted(counts_by_model.keys(), key=lambda k: display_by_key.get(k, k).lower()):
         lines.append(f"{display_by_key.get(key, key)}: ({counts_by_model[key]}) IG Accounts Alive")
     lines.append(f"Generic: ({generic_count}) IG Accounts Alive")
@@ -303,17 +297,13 @@ def run_bot(stop_event=None, account_owner=None):
             account_model_key = _normalize_account_model_label(account.get("model_label", ""))
             account_models = _models_for_account(account, models)
             account_custom_messages = _normalize_message_list(account.get("custom_messages"))
+            account_label_display = str(account.get("model_label", "")).strip().lstrip("@") or ""
 
             log_and_telegram(f"━━━ Switching to account: @{username} ━━━")
             if account_model_key:
-                account_model_display = str(account.get("model_label", "")).strip().lstrip("@") or account_model_key
-                log_and_telegram(f"[{username}] 🏷️ Model label: @{account_model_display}")
+                log_and_telegram(f"[{username}] 🏷️ Marketing label: {account_label_display}")
             else:
-                log_and_telegram(f"[{username}] 🏷️ Model label: Generic (any model)")
-
-            if not account_models:
-                log_and_telegram(f"[{username}] ⚠️ No eligible model targets for this account label, skipping")
-                continue
+                log_and_telegram(f"[{username}] 🏷️ Marketing label: Generic")
 
             telegram_bot.stats["current_account"] = username
             telegram_bot.stats["accounts_used"] += 1
@@ -350,22 +340,29 @@ def run_bot(stop_event=None, account_owner=None):
                     telegram_bot.stats["current_model"] = model_username
 
                     custom_messages = model_message_map.get(_normalize_model_key(model_username), [])
+                    label_messages = model_message_map.get(account_model_key, []) if account_model_key else []
                     if account_model_key and account_custom_messages:
                         messages_for_model = account_custom_messages
                         log_and_telegram(
                             f"[{username}] Using {len(messages_for_model)} account custom messages for @{model_username}"
                         )
                     elif account_model_key:
-                        # Labeled accounts only use custom DMs for their target model.
-                        messages_for_model = custom_messages
+                        # Labeled accounts use messages mapped to their marketing label.
+                        messages_for_model = label_messages if label_messages else messages
                         if not messages_for_model:
                             log_and_telegram(
-                                f"[{username}] ⚠️ No custom model messages for @{model_username}, skipping labeled account"
+                                f"[{username}] ⚠️ No messages configured for marketing label '{account_label_display}', skipping"
                             )
                             continue
-                        log_and_telegram(
-                            f"[{username}] Using {len(messages_for_model)} labeled custom messages for @{model_username}"
-                        )
+
+                        if label_messages:
+                            log_and_telegram(
+                                f"[{username}] Using {len(messages_for_model)} label custom messages ({account_label_display}) for @{model_username}"
+                            )
+                        else:
+                            log_and_telegram(
+                                f"[{username}] No label message set for {account_label_display}; using general messages for @{model_username}"
+                            )
                     else:
                         messages_for_model = custom_messages if custom_messages else messages
                         if not messages_for_model:

@@ -338,7 +338,7 @@
       
       <div class="card">
         <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-          Optional model label: leave empty for Generic (can DM any model). If set, that account will run only that model. You can also define account-level custom messages for labeled accounts.
+          Optional model label: this is your marketing model/campaign label (for example, Alice). It does not limit target usernames. If set, the account uses that label's message set; account custom messages can override it.
         </p>
         <div class="table-wrap">
           <table id="accountsTable">
@@ -346,7 +346,7 @@
               <tr>
                 <th>Username</th>
                 <th>Password (Required)</th>
-                <th style="width: 190px;">For Model (Optional)</th>
+                <th style="width: 190px;">Model Label (Optional)</th>
                 <th id="accountsOwnerHeader" style="width: 140px; display:none;">Owner</th>
                 <th style="width: 170px;">Custom Messages</th>
                 <th style="width: 140px;">Cookies</th>
@@ -538,7 +538,7 @@
   <div class="modal-overlay" id="accountMessageModalOverlay">
     <div class="modal">
       <h2 id="accountMessageModalTitle">Account Custom Messages</h2>
-      <p>Add one message per line. These messages are used for this labeled account before model-level custom messages.</p>
+      <p>Add one message per line. These override the label/general message pools for this account.</p>
       <textarea id="accountMessageTextarea" rows="10" placeholder="Hi {name}\nHello from our page" style="font-family: inherit; margin-bottom: 1rem;"></textarea>
       <div style="display: flex; gap: 1rem; justify-content: flex-end;">
         <button class="btn" style="background:var(--surface-border)" onclick="closeAccountMessageModal()">Cancel</button>
@@ -1302,7 +1302,7 @@
           <tr style="${rowStyle}">
             <td><input type="text" id="acc_user_${i}" value="${safeUser}" ${disabledAttr}></td>
             <td><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="${isReadonlyQueue ? 'Managed by another employee' : 'Required password'}" ${disabledAttr}></td>
-            <td><input type="text" id="acc_model_${i}" value="${safeModelLabel}" placeholder="Generic (Any model)" list="modelsDatalist" ${disabledAttr}></td>
+            <td><input type="text" id="acc_model_${i}" value="${safeModelLabel}" placeholder="Generic (No label)" ${disabledAttr}></td>
             ${ownerCell}
             <td>
               ${customMessagesCell}
