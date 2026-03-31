@@ -128,6 +128,20 @@ def _setting_int(key: str) -> int:
     raise ValueError(f"Invalid integer setting '{key}': {value}")
 
 
+def _normalize_text_list(raw_items):
+  if not isinstance(raw_items, list):
+    return []
+
+  clean = []
+  for item in raw_items:
+    if not isinstance(item, str):
+      continue
+    text = item.strip()
+    if text:
+      clean.append(text)
+  return clean
+
+
 # ── Dashboard HTML ──
 DASHBOARD_HTML = """
 <!DOCTYPE html>
@@ -479,12 +493,13 @@ def api_get_config():
 
         queue_rows = database.get_accounts(include_all=True)
         data["accounts_queue"] = [
-          {
-            "username": str(acc.get("username", "")).strip(),
-            "owner_username": str(acc.get("owner_username", "")).strip() or "master",
-          }
-          for acc in queue_rows
-          if str(acc.get("username", "")).strip()
+            {
+                "username": str(acc.get("username", "")).strip(),
+                "owner_username": str(acc.get("owner_username", "")).strip() or "master",
+                "model_label": str(acc.get("model_label", "")).strip(),
+            }
+            for acc in queue_rows
+            if str(acc.get("username", "")).strip()
         ]
 
         data["models"] = database.get_models()
@@ -505,6 +520,7 @@ def api_accounts_queue():
             {
                 "username": str(acc.get("username", "")).strip(),
                 "owner_username": str(acc.get("owner_username", "")).strip() or "master",
+            "model_label": str(acc.get("model_label", "")).strip(),
             }
             for acc in queue_rows
             if str(acc.get("username", "")).strip()
@@ -553,6 +569,8 @@ def api_save_config(target):
                 account_entry = {
                     "username": username,
                     "password": password,
+                    "model_label": str(raw_acc.get("model_label", "")).strip(),
+                    "custom_messages": _normalize_text_list(raw_acc.get("custom_messages", [])),
                 }
                 if is_master:
                     account_entry["owner_username"] = str(raw_acc.get("owner_username", "")).strip().lower() or "master"

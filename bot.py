@@ -123,6 +123,58 @@ def _normalize_model_key(model_username: str) -> str:
     return str(model_username or "").strip().lstrip("@").lower()
 
 
+def _normalize_account_model_label(raw_label: str) -> str:
+    """Normalize an account model label; empty means generic account."""
+    key = _normalize_model_key(raw_label)
+    if key in ("", "generic", "any", "all", "*", "none"):
+        return ""
+    return key
+
+
+def _models_for_account(account: dict, all_models: list) -> list:
+    """Return the target model list this account is allowed to process."""
+    label_key = _normalize_account_model_label(account.get("model_label", ""))
+    if not label_key:
+        return list(all_models)
+
+    matched = [m for m in all_models if _normalize_model_key(m) == label_key]
+    if matched:
+        return matched
+
+    # Fallback allows a labeled account to still target its explicit label text.
+    label_value = str(account.get("model_label", "")).strip().lstrip("@")
+    return [label_value] if label_value else []
+
+
+def _build_account_pool_summary(accounts: list, models: list) -> str:
+    """Build Telegram text for per-model and generic account availability."""
+    display_by_key = {}
+    for model_name in models:
+        key = _normalize_model_key(model_name)
+        if key:
+            display_by_key[key] = str(model_name or "").strip().lstrip("@")
+
+    counts_by_model = {}
+    generic_count = 0
+
+    for account in accounts:
+        label_raw = str(account.get("model_label", "")).strip().lstrip("@")
+        label_key = _normalize_account_model_label(label_raw)
+        if not label_key:
+            generic_count += 1
+            continue
+
+        counts_by_model[label_key] = counts_by_model.get(label_key, 0) + 1
+        if label_key not in display_by_key:
+            display_by_key[label_key] = label_raw or label_key
+
+    lines = ["Models:"]
+    for key in sorted(counts_by_model.keys(), key=lambda k: display_by_key.get(k, k).lower()):
+        lines.append(f"{display_by_key.get(key, key)}: ({counts_by_model[key]}) IG Accounts Alive")
+    lines.append(f"Generic: ({generic_count}) IG Accounts Alive")
+    return "\n".join(lines)
+
+
 def _normalize_message_list(raw_messages) -> list:
     """Normalize a raw messages array into non-empty trimmed strings."""
     if not isinstance(raw_messages, list):
@@ -235,6 +287,7 @@ def run_bot(stop_event=None, account_owner=None):
     # Start Telegram
     telegram_bot.start_polling()
     telegram_bot.send_startup()
+    telegram_bot.send_account_pool_summary(_build_account_pool_summary(accounts, models))
     telegram_bot.stats["status"] = "Running"
 
     total_dms_sent = 0
@@ -247,7 +300,21 @@ def run_bot(stop_event=None, account_owner=None):
                 break
 
             username = account["username"]
+            account_model_key = _normalize_account_model_label(account.get("model_label", ""))
+            account_models = _models_for_account(account, models)
+            account_custom_messages = _normalize_message_list(account.get("custom_messages"))
+
             log_and_telegram(f"━━━ Switching to account: @{username} ━━━")
+            if account_model_key:
+                account_model_display = str(account.get("model_label", "")).strip().lstrip("@") or account_model_key
+                log_and_telegram(f"[{username}] 🏷️ Model label: @{account_model_display}")
+            else:
+                log_and_telegram(f"[{username}] 🏷️ Model label: Generic (any model)")
+
+            if not account_models:
+                log_and_telegram(f"[{username}] ⚠️ No eligible model targets for this account label, skipping")
+                continue
+
             telegram_bot.stats["current_account"] = username
             telegram_bot.stats["accounts_used"] += 1
 
@@ -269,8 +336,8 @@ def run_bot(stop_event=None, account_owner=None):
                     close_driver(driver)
                     continue
 
-                # Process each model
-                for model_username in models:
+                # Process each model allowed for this account
+                for model_username in account_models:
                     if stop_event and stop_event.is_set():
                         log_and_telegram("🛑 Stop requested, breaking model loop.")
                         break
@@ -282,19 +349,37 @@ def run_bot(stop_event=None, account_owner=None):
                     log_and_telegram(f"🎯 Targeting model: @{model_username}")
                     telegram_bot.stats["current_model"] = model_username
 
-                    messages_for_model = _messages_for_model(model_username, messages, model_message_map)
-                    if not messages_for_model:
-                        log_and_telegram(f"[{username}] ⚠️ No messages configured for @{model_username}, skipping")
-                        continue
-
-                    if _normalize_model_key(model_username) in model_message_map:
+                    custom_messages = model_message_map.get(_normalize_model_key(model_username), [])
+                    if account_model_key and account_custom_messages:
+                        messages_for_model = account_custom_messages
                         log_and_telegram(
-                            f"[{username}] Using {len(messages_for_model)} custom messages for @{model_username}"
+                            f"[{username}] Using {len(messages_for_model)} account custom messages for @{model_username}"
+                        )
+                    elif account_model_key:
+                        # Labeled accounts only use custom DMs for their target model.
+                        messages_for_model = custom_messages
+                        if not messages_for_model:
+                            log_and_telegram(
+                                f"[{username}] ⚠️ No custom model messages for @{model_username}, skipping labeled account"
+                            )
+                            continue
+                        log_and_telegram(
+                            f"[{username}] Using {len(messages_for_model)} labeled custom messages for @{model_username}"
                         )
                     else:
-                        log_and_telegram(
-                            f"[{username}] Using general message pool for @{model_username}"
-                        )
+                        messages_for_model = custom_messages if custom_messages else messages
+                        if not messages_for_model:
+                            log_and_telegram(f"[{username}] ⚠️ No messages configured for @{model_username}, skipping")
+                            continue
+
+                        if custom_messages:
+                            log_and_telegram(
+                                f"[{username}] Using {len(messages_for_model)} custom messages for @{model_username}"
+                            )
+                        else:
+                            log_and_telegram(
+                                f"[{username}] Using general message pool for @{model_username}"
+                            )
 
                     dms_for_model = _process_model(
                         driver, account, model_username, messages_for_model, dm_log, already_dmd, stop_event=stop_event

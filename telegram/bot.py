@@ -107,6 +107,17 @@ class TelegramBot:
             "Use `/stop` to request stop"
         )
 
+    def send_account_pool_summary(self, summary_text: str):
+        """Send an IG account availability summary grouped by model label."""
+        clean_summary = str(summary_text or "").strip()
+        if not clean_summary:
+            return
+
+        self.send(
+            "📊 *IG ACCOUNT POOL*\n\n"
+            f"{clean_summary}"
+        )
+
     def send_challenge_alert(self, account: str, challenge_type: str, url: str = ""):
         """Alert employees that an account needs human intervention."""
         self.send(

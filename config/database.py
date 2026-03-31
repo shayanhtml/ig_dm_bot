@@ -83,6 +83,47 @@ def _ensure_account_owner_column(conn):
     conn.execute("UPDATE accounts SET owner_username = 'master' WHERE owner_username IS NULL OR owner_username = ''")
 
 
+def _ensure_account_model_label_column(conn):
+    if "model_label" in _table_columns(conn, "accounts"):
+        return
+
+    conn.execute("ALTER TABLE accounts ADD COLUMN model_label TEXT NOT NULL DEFAULT ''")
+    conn.execute("UPDATE accounts SET model_label = '' WHERE model_label IS NULL")
+
+
+def _ensure_account_custom_messages_column(conn):
+    columns = _table_columns(conn, "accounts")
+    if "custom_messages_json" not in columns:
+        conn.execute("ALTER TABLE accounts ADD COLUMN custom_messages_json TEXT NOT NULL DEFAULT '[]'")
+
+    conn.execute(
+        "UPDATE accounts SET custom_messages_json = '[]' "
+        "WHERE custom_messages_json IS NULL OR TRIM(custom_messages_json) = ''"
+    )
+
+
+def _normalize_account_model_label(value) -> str:
+    clean = str(value or "").strip().lstrip("@")
+    key = clean.lower()
+    if key in ("", "generic", "any", "all", "*", "none"):
+        return ""
+    return clean
+
+
+def _normalize_account_custom_messages(raw_messages) -> list:
+    if not isinstance(raw_messages, list):
+        return []
+
+    clean_messages = []
+    for msg in raw_messages:
+        if not isinstance(msg, str):
+            continue
+        trimmed = msg.strip()
+        if trimmed:
+            clean_messages.append(trimmed)
+    return clean_messages
+
+
 def _ensure_master_user(conn):
     users_count_row = conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()
     users_count = int(users_count_row["c"] if users_count_row else 0)
@@ -128,7 +169,9 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 password TEXT,
-                owner_username TEXT NOT NULL DEFAULT 'master'
+                owner_username TEXT NOT NULL DEFAULT 'master',
+                model_label TEXT NOT NULL DEFAULT '',
+                custom_messages_json TEXT NOT NULL DEFAULT '[]'
             )
         """)
         
@@ -210,6 +253,8 @@ def init_db():
 
         # Schema/data migrations
         _ensure_account_owner_column(conn)
+        _ensure_account_model_label_column(conn)
+        _ensure_account_custom_messages_column(conn)
         _ensure_master_user(conn)
 
         conn.commit()
@@ -422,25 +467,37 @@ def get_accounts(owner_username: str = None, include_all: bool = False):
     try:
         if include_all:
             rows = conn.execute(
-                "SELECT username, password, owner_username FROM accounts ORDER BY owner_username, username"
+                "SELECT username, password, owner_username, model_label, custom_messages_json "
+                "FROM accounts ORDER BY owner_username, username"
             ).fetchall()
         else:
             clean_owner = str(owner_username or "").strip().lower()
             if not clean_owner:
                 return []
             rows = conn.execute(
-                "SELECT username, password, owner_username FROM accounts WHERE owner_username = ? ORDER BY username",
+                "SELECT username, password, owner_username, model_label, custom_messages_json "
+                "FROM accounts WHERE owner_username = ? ORDER BY username",
                 (clean_owner,),
             ).fetchall()
 
-        return [
-            {
-                "username": r["username"],
-                "password": r["password"] or "",
-                "owner_username": r["owner_username"] or "master",
-            }
-            for r in rows
-        ]
+        accounts = []
+        for r in rows:
+            try:
+                raw_custom_messages = json.loads(r["custom_messages_json"] or "[]")
+            except Exception:
+                raw_custom_messages = []
+
+            accounts.append(
+                {
+                    "username": r["username"],
+                    "password": r["password"] or "",
+                    "owner_username": r["owner_username"] or "master",
+                    "model_label": str(r["model_label"] or "").strip(),
+                    "custom_messages": _normalize_account_custom_messages(raw_custom_messages),
+                }
+            )
+
+        return accounts
     finally:
         conn.close()
 
@@ -459,9 +516,14 @@ def save_accounts(accounts_list, owner_username: str = None, include_all: bool =
                 password = str(acc.get("password", "")).strip() or None
                 owner = str(acc.get("owner_username") or acc.get("owner") or "master").strip().lower()
                 owner = owner or "master"
+                model_label = _normalize_account_model_label(acc.get("model_label", ""))
+                custom_messages_json = json.dumps(
+                    _normalize_account_custom_messages(acc.get("custom_messages", []))
+                )
                 conn.execute(
-                    "INSERT INTO accounts (username, password, owner_username) VALUES (?, ?, ?)",
-                    (username, password, owner),
+                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (username, password, owner, model_label, custom_messages_json),
                 )
         else:
             clean_owner = str(owner_username or "").strip().lower()
@@ -474,9 +536,14 @@ def save_accounts(accounts_list, owner_username: str = None, include_all: bool =
                 if not username:
                     continue
                 password = str(acc.get("password", "")).strip() or None
+                model_label = _normalize_account_model_label(acc.get("model_label", ""))
+                custom_messages_json = json.dumps(
+                    _normalize_account_custom_messages(acc.get("custom_messages", []))
+                )
                 conn.execute(
-                    "INSERT INTO accounts (username, password, owner_username) VALUES (?, ?, ?)",
-                    (username, password, clean_owner),
+                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (username, password, clean_owner, model_label, custom_messages_json),
                 )
 
         conn.commit()

@@ -337,13 +337,18 @@
       </div>
       
       <div class="card">
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+          Optional model label: leave empty for Generic (can DM any model). If set, that account will run only that model. You can also define account-level custom messages for labeled accounts.
+        </p>
         <div class="table-wrap">
           <table id="accountsTable">
             <thead>
               <tr>
                 <th>Username</th>
                 <th>Password (Required)</th>
+                <th style="width: 190px;">For Model (Optional)</th>
                 <th id="accountsOwnerHeader" style="width: 140px; display:none;">Owner</th>
+                <th style="width: 170px;">Custom Messages</th>
                 <th style="width: 140px;">Cookies</th>
                 <th style="width: 100px;">Action</th>
               </tr>
@@ -529,6 +534,19 @@
     </div>
   </div>
 
+  <!-- Account Message Editor Modal -->
+  <div class="modal-overlay" id="accountMessageModalOverlay">
+    <div class="modal">
+      <h2 id="accountMessageModalTitle">Account Custom Messages</h2>
+      <p>Add one message per line. These messages are used for this labeled account before model-level custom messages.</p>
+      <textarea id="accountMessageTextarea" rows="10" placeholder="Hi {name}\nHello from our page" style="font-family: inherit; margin-bottom: 1rem;"></textarea>
+      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+        <button class="btn" style="background:var(--surface-border)" onclick="closeAccountMessageModal()">Cancel</button>
+        <button class="btn btn-success" onclick="saveAccountMessageModal()"><i class="fas fa-save"></i> Save Messages</button>
+      </div>
+    </div>
+  </div>
+
   <!-- User Edit Modal -->
   <div class="modal-overlay" id="userEditModalOverlay">
     <div class="modal">
@@ -625,6 +643,8 @@
     let activeEditUser = '';
     let activeCookieUser = "";
     let activeCookieRowIndex = -1;
+    let activeAccountMessageRowIndex = -1;
+    let activeAccountMessageUser = '';
     let activeResetPasswordUser = '';
     let confirmModalResolver = null;
 
@@ -1096,6 +1116,7 @@
 
       const ownedAccounts = globalAccounts.map(acc => ({
         ...acc,
+        custom_messages: Array.isArray(acc.custom_messages) ? acc.custom_messages : [],
         shared_readonly: false,
       }));
 
@@ -1120,6 +1141,8 @@
         ownedAccounts.push({
           username,
           password: '',
+          model_label: item.model_label || '',
+          custom_messages: Array.isArray(item.custom_messages) ? item.custom_messages : [],
           owner_username: item.owner_username || '',
           cookies_raw: '',
           cookies_touched: false,
@@ -1147,6 +1170,8 @@
         // Populate Accounts
         globalAccounts = (data.accounts || []).map(acc => ({
           ...acc,
+          model_label: String(acc.model_label || '').trim(),
+          custom_messages: Array.isArray(acc.custom_messages) ? acc.custom_messages : [],
           cookies_raw: acc.cookies_raw || '',
           cookies_touched: false,
           shared_readonly: false,
@@ -1240,7 +1265,7 @@
       tbody.innerHTML = '';
 
       if (!globalAccounts.length) {
-        const cols = globalIsMaster ? 5 : 4;
+        const cols = globalIsMaster ? 7 : 6;
         tbody.innerHTML = `<tr><td colspan="${cols}" style="color: var(--text-muted); font-size:0.85rem;">No accounts added yet.</td></tr>`;
         return;
       }
@@ -1249,10 +1274,18 @@
         const isReadonlyQueue = !globalIsMaster && !!acc.shared_readonly;
         const safeUser = escapeHtml(acc.username || '');
         const safePass = escapeHtml(isReadonlyQueue ? '********' : (acc.password || ''));
+        const safeModelLabel = escapeHtml(acc.model_label || '');
+        const messageCount = Array.isArray(acc.custom_messages)
+          ? acc.custom_messages.filter(x => String(x || '').trim()).length
+          : 0;
         const safeOwner = escapeHtml(acc.owner_username || globalCurrentUser.username || 'master');
         const ownerCell = globalIsMaster
           ? `<td><span class="badge" style="background:rgba(216,155,2,0.16); border:1px solid rgba(216,155,2,0.38); color:#f3c24d;">${safeOwner}</span></td>`
           : '';
+
+        const customMessagesCell = isReadonlyQueue
+          ? `<span class="badge" style="background:rgba(216,155,2,0.12); border:1px solid rgba(216,155,2,0.3); color:#f3c24d;">${messageCount} msgs</span>`
+          : `<button class="btn btn-primary btn-sm" title="Edit Custom Messages" onclick="openAccountMessageModalFromRow(${i})"><i class="fas fa-comment-dots"></i> Messages (${messageCount})</button>`;
 
         const cookiesCell = isReadonlyQueue
           ? `<span class="badge" style="background:rgba(216,155,2,0.12); border:1px solid rgba(216,155,2,0.3); color:#f3c24d;">Queue</span>`
@@ -1269,7 +1302,11 @@
           <tr style="${rowStyle}">
             <td><input type="text" id="acc_user_${i}" value="${safeUser}" ${disabledAttr}></td>
             <td><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="${isReadonlyQueue ? 'Managed by another employee' : 'Required password'}" ${disabledAttr}></td>
+            <td><input type="text" id="acc_model_${i}" value="${safeModelLabel}" placeholder="Generic (Any model)" list="modelsDatalist" ${disabledAttr}></td>
             ${ownerCell}
+            <td>
+              ${customMessagesCell}
+            </td>
             <td>
               ${cookiesCell}
             </td>
@@ -1287,6 +1324,8 @@
       globalAccounts.push({
         username: "",
         password: "",
+        model_label: "",
+        custom_messages: [],
         owner_username: globalCurrentUser.username || 'master',
         cookies_raw: '',
         cookies_touched: false,
@@ -1312,8 +1351,13 @@
         }
         const u = document.getElementById(`acc_user_${i}`);
         const p = document.getElementById(`acc_pass_${i}`);
+        const ml = document.getElementById(`acc_model_${i}`);
         if(u) acc.username = u.value;
         if(p) acc.password = p.value;
+        if(ml) acc.model_label = ml.value;
+        if (!Array.isArray(acc.custom_messages)) {
+          acc.custom_messages = [];
+        }
         acc.owner_username = acc.owner_username || globalCurrentUser.username || 'master';
       });
     }
@@ -1330,6 +1374,10 @@
         .map(a => ({
           username: a.username.trim(),
           password: String(a.password || '').trim(),
+          model_label: String(a.model_label || '').trim(),
+          custom_messages: Array.isArray(a.custom_messages)
+            ? a.custom_messages.map(x => String(x || '').trim()).filter(x => x)
+            : [],
           owner_username: a.owner_username || globalCurrentUser.username || 'master',
           cookies_raw: a.cookies_raw || '',
           cookies_touched: !!a.cookies_touched,
@@ -1346,6 +1394,8 @@
       const accountsPayload = cleanAccs.map(a => ({
         username: a.username,
         password: a.password,
+        model_label: a.model_label,
+        custom_messages: a.custom_messages,
         owner_username: a.owner_username,
       }));
 
@@ -1847,6 +1897,56 @@
     async function botCommand(cmd) {
       await fetch('/' + cmd);
       setTimeout(fetchStatus, 500); // refresh UI
+    }
+
+    // ── Account Message UI Handlers ──
+    function openAccountMessageModalFromRow(idx) {
+      syncAccountsFromDom();
+      const account = globalAccounts[idx];
+      if (!account) return;
+
+      if (!globalIsMaster && account.shared_readonly) {
+        showError('Queued accounts from other employees are read-only');
+        return;
+      }
+
+      const username = String(account.username || '').trim();
+      const displayName = username || `Account ${idx + 1}`;
+
+      if (!Array.isArray(account.custom_messages)) {
+        account.custom_messages = [];
+      }
+
+      activeAccountMessageRowIndex = idx;
+      activeAccountMessageUser = displayName;
+
+      document.getElementById('accountMessageModalTitle').innerText = `Edit Custom Messages: ${displayName}`;
+      document.getElementById('accountMessageTextarea').value = account.custom_messages.join('\n');
+      document.getElementById('accountMessageModalOverlay').classList.add('show');
+    }
+
+    function closeAccountMessageModal() {
+      document.getElementById('accountMessageModalOverlay').classList.remove('show');
+      activeAccountMessageRowIndex = -1;
+      activeAccountMessageUser = '';
+    }
+
+    function saveAccountMessageModal() {
+      if (activeAccountMessageRowIndex < 0 || !globalAccounts[activeAccountMessageRowIndex]) {
+        showError('No account row selected for custom messages');
+        return;
+      }
+
+      const raw = document.getElementById('accountMessageTextarea').value;
+      const messages = parseMessageLines(raw);
+
+      const row = globalAccounts[activeAccountMessageRowIndex];
+      row.custom_messages = messages;
+
+      const username = activeAccountMessageUser;
+      closeAccountMessageModal();
+      renderAccounts();
+      showToast(`Custom messages staged for ${username}. Click Save Accounts to apply.`);
     }
 
     // ── Cookie UI Handlers ──
