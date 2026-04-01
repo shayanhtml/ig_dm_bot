@@ -170,54 +170,48 @@ def _build_account_pool_summary(accounts: list, models: list) -> str:
 
 
 def _normalize_proxy_list(raw_proxy_list) -> list:
-    """Normalize proxy setting to a de-duplicated list of non-empty strings."""
+    """Normalize proxy settings into a de-duplicated list of non-empty strings."""
     if isinstance(raw_proxy_list, str):
-        candidates = [
-            part.strip()
-            for line in raw_proxy_list.splitlines()
-            for part in line.split(",")
-        ]
+        raw_items = [raw_proxy_list]
     elif isinstance(raw_proxy_list, list):
-        candidates = [str(item or "").strip() for item in raw_proxy_list]
+        raw_items = raw_proxy_list
     else:
         return []
 
     clean = []
     seen = set()
-    for item in candidates:
-        if not item:
-            continue
-        key = item.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        clean.append(item)
+    for raw_item in raw_items:
+        text = str(raw_item or "")
+        for line in text.splitlines():
+            for part in line.split(","):
+                proxy = part.strip()
+                if not proxy:
+                    continue
+                key = proxy.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                clean.append(proxy)
     return clean
 
 
-def _mask_proxy(proxy_value: str) -> str:
-    """Mask proxy credentials for logs and Telegram output."""
-    clean = str(proxy_value or "").strip()
-    if not clean:
-        return ""
+def _assign_session_proxies(accounts: list, proxy_pool: list) -> dict:
+    """Assign proxies per account for this session, reusing only when pool is smaller."""
+    if not accounts or not proxy_pool:
+        return {}
 
-    if "@" not in clean:
-        return clean
+    shuffled_pool = list(proxy_pool)
+    random.shuffle(shuffled_pool)
 
-    if "://" in clean:
-        scheme, rest = clean.split("://", 1)
-        prefix = f"{scheme}://"
-    else:
-        rest = clean
-        prefix = ""
+    assignments = {}
+    pool_size = len(shuffled_pool)
+    for idx, account in enumerate(accounts):
+        username = str(account.get("username") or "").strip()
+        if not username:
+            continue
+        assignments[username] = shuffled_pool[idx % pool_size]
 
-    creds, host = rest.rsplit("@", 1)
-    if ":" in creds:
-        username = creds.split(":", 1)[0]
-        safe_creds = f"{username}:***"
-    else:
-        safe_creds = "***"
-    return f"{prefix}{safe_creds}@{host}"
+    return assignments
 
 
 def _normalize_message_list(raw_messages) -> list:
@@ -310,6 +304,12 @@ def run_bot(stop_event=None, account_owner=None):
     if account_owner:
         logger.info(f"Account scope: employee @{account_owner}")
 
+    proxy_assignments = _assign_session_proxies(accounts, proxy_pool)
+    if proxy_pool and len(proxy_pool) < len(accounts):
+        logger.warning(
+            "[ProxyPool] Pool has fewer proxies than accounts; some proxies will be reused this session"
+        )
+
     # Load DM log and build 24-hour exclusion set
     from datetime import datetime, timedelta
     dm_log = database.get_dm_logs()
@@ -351,7 +351,6 @@ def run_bot(stop_event=None, account_owner=None):
             account_models = _models_for_account(account, models)
             account_custom_messages = _normalize_message_list(account.get("custom_messages"))
             account_label_display = str(account.get("model_label", "")).strip().lstrip("@") or ""
-            assigned_proxy = random.choice(proxy_pool) if proxy_pool else ""
 
             log_and_telegram(f"━━━ Switching to account: @{username} ━━━")
             if account_model_key:
@@ -359,27 +358,24 @@ def run_bot(stop_event=None, account_owner=None):
             else:
                 log_and_telegram(f"[{username}] 🏷️ Marketing label: Generic")
 
-            if assigned_proxy:
-                log_and_telegram(f"[{username}] 🌐 Proxy: {_mask_proxy(assigned_proxy)}")
-            else:
-                log_and_telegram(f"[{username}] 🌐 Proxy: Direct (no proxy)")
-
             telegram_bot.stats["current_account"] = username
             telegram_bot.stats["accounts_used"] += 1
 
             # Create browser
             driver = None
+            pool_proxy = str(proxy_assignments.get(username) or "").strip()
+            manual_proxy = str(account.get("proxy") or "").strip()
+            account_proxy = pool_proxy or manual_proxy or None
             try:
-                try:
-                    driver = create_driver(proxy=assigned_proxy or None)
-                except Exception as proxy_error:
-                    if assigned_proxy:
-                        log_and_telegram(
-                            f"[{username}] ⚠️ Proxy launch failed ({_mask_proxy(assigned_proxy)}): {proxy_error}. Retrying direct."
-                        )
-                        driver = create_driver()
-                    else:
-                        raise
+                if account_proxy:
+                    from core.browser import _mask_proxy_for_log
+                    proxy_source = "pool" if pool_proxy else "account"
+                    log_and_telegram(
+                        f"[{username}] 🌐 Using {proxy_source} proxy: {_mask_proxy_for_log(account_proxy)}"
+                    )
+                else:
+                    log_and_telegram(f"[{username}] 🌐 Using direct connection (no proxy)")
+                driver = create_driver(proxy=account_proxy)
                 _register_driver(driver)
             except Exception as e:
                 log_and_telegram(f"❌ Failed to create browser for @{username}: {e}")

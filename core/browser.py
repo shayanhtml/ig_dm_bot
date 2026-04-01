@@ -6,9 +6,19 @@ import subprocess
 import re
 import logging
 import ssl
+import base64
 import os
 import time
 import ctypes
+import json
+import tempfile
+import shutil
+import atexit
+import socket
+import socketserver
+import select
+import threading
+from urllib.parse import urlsplit, unquote
 import undetected_chromedriver as uc
 
 logger = logging.getLogger("model_dm_bot")
@@ -25,6 +35,170 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
 ]
+
+_TEMP_PROXY_EXTENSION_DIRS = []
+_LOCAL_PROXY_SERVERS = []
+
+
+def _cleanup_proxy_resources():
+    while _LOCAL_PROXY_SERVERS:
+        server = _LOCAL_PROXY_SERVERS.pop()
+        try:
+            server.shutdown()
+        except Exception:
+            pass
+        try:
+            server.server_close()
+        except Exception:
+            pass
+
+    while _TEMP_PROXY_EXTENSION_DIRS:
+        folder = _TEMP_PROXY_EXTENSION_DIRS.pop()
+        try:
+            shutil.rmtree(folder, ignore_errors=True)
+        except Exception:
+            pass
+
+
+atexit.register(_cleanup_proxy_resources)
+
+
+class _AuthenticatedForwardProxy(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+    def __init__(self, server_address, handler_cls, upstream_host, upstream_port, auth_header):
+        super().__init__(server_address, handler_cls)
+        self.upstream_host = str(upstream_host)
+        self.upstream_port = int(upstream_port)
+        self.auth_header = str(auth_header)
+
+
+class _AuthenticatedForwardProxyHandler(socketserver.BaseRequestHandler):
+    _HEADER_LIMIT = 128 * 1024
+
+    def _recv_headers(self, sock) -> bytes:
+        data = b""
+        while b"\r\n\r\n" not in data and len(data) < self._HEADER_LIMIT:
+            chunk = sock.recv(4096)
+            if not chunk:
+                break
+            data += chunk
+        return data
+
+    def _pipe_bidirectional(self, client_sock, upstream_sock):
+        sockets = [client_sock, upstream_sock]
+        while True:
+            try:
+                ready, _, _ = select.select(sockets, [], [], 60)
+            except OSError:
+                return
+            if not ready:
+                return
+            for source in ready:
+                target = upstream_sock if source is client_sock else client_sock
+                try:
+                    chunk = source.recv(8192)
+                except OSError:
+                    return
+                if not chunk:
+                    return
+                try:
+                    target.sendall(chunk)
+                except OSError:
+                    return
+
+    def handle(self):
+        client_sock = self.request
+        client_sock.settimeout(60)
+
+        request_blob = self._recv_headers(client_sock)
+        if not request_blob:
+            return
+
+        header_end = request_blob.find(b"\r\n\r\n")
+        if header_end < 0:
+            return
+
+        header_bytes = request_blob[:header_end]
+        pending_body = request_blob[header_end + 4 :]
+
+        try:
+            header_text = header_bytes.decode("iso-8859-1", errors="replace")
+        except Exception:
+            return
+
+        lines = header_text.split("\r\n")
+        if not lines:
+            return
+
+        parts = lines[0].split(" ", 2)
+        if len(parts) != 3:
+            return
+
+        method, target, version = parts[0].upper(), parts[1], parts[2]
+
+        try:
+            upstream_sock = socket.create_connection(
+                (self.server.upstream_host, self.server.upstream_port), timeout=30
+            )
+            upstream_sock.settimeout(60)
+        except Exception:
+            try:
+                client_sock.sendall(b"HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n")
+            except Exception:
+                pass
+            return
+
+        try:
+            if method == "CONNECT":
+                connect_payload = (
+                    f"CONNECT {target} HTTP/1.1\r\n"
+                    f"Host: {target}\r\n"
+                    f"Proxy-Authorization: {self.server.auth_header}\r\n"
+                    "Proxy-Connection: Keep-Alive\r\n"
+                    "Connection: Keep-Alive\r\n\r\n"
+                ).encode("iso-8859-1")
+                upstream_sock.sendall(connect_payload)
+
+                upstream_response = self._recv_headers(upstream_sock)
+                if not upstream_response:
+                    client_sock.sendall(b"HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n")
+                    return
+
+                status_line = upstream_response.split(b"\r\n", 1)[0]
+                if b" 200 " not in status_line and not status_line.startswith(b"HTTP/1.0 200"):
+                    client_sock.sendall(upstream_response)
+                    return
+
+                client_sock.sendall(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                self._pipe_bidirectional(client_sock, upstream_sock)
+                return
+
+            forwarded_headers = []
+            for line in lines[1:]:
+                if ":" not in line:
+                    continue
+                name, value = line.split(":", 1)
+                key = name.strip().lower()
+                if key in ("proxy-authorization", "proxy-connection"):
+                    continue
+                forwarded_headers.append((name.strip(), value.lstrip()))
+
+            forwarded_headers.append(("Proxy-Authorization", self.server.auth_header))
+
+            payload = f"{method} {target} {version}\r\n".encode("iso-8859-1")
+            for name, value in forwarded_headers:
+                payload += f"{name}: {value}\r\n".encode("iso-8859-1")
+            payload += b"\r\n" + pending_body
+            upstream_sock.sendall(payload)
+
+            self._pipe_bidirectional(client_sock, upstream_sock)
+        finally:
+            try:
+                upstream_sock.close()
+            except Exception:
+                pass
 
 
 def _parse_ints(text: str) -> set:
@@ -253,19 +427,177 @@ def _detect_chrome_version() -> int:
     return 145
 
 
-def _normalize_proxy_server(proxy_value: str) -> str:
-    """Normalize proxy strings to a Chrome --proxy-server compatible value."""
+def _parse_proxy_config(proxy_value: str) -> dict:
+    """Parse proxy input into a normalized config.
+
+    Supported examples:
+    - host:port
+    - host:port:username:password
+    - username:password@host:port
+    - http://host:port
+    - socks5://username:password@host:port
+    """
     clean = str(proxy_value or "").strip()
     if not clean:
-        return ""
+        return {}
+
+    scheme = "http"
+    host = ""
+    port = 0
+    username = ""
+    password = ""
 
     if "://" in clean:
-        return clean
+        parts = urlsplit(clean)
+        scheme = str(parts.scheme or "http").strip().lower()
+        host = str(parts.hostname or "").strip()
+        port = int(parts.port or 0)
+        username = unquote(parts.username or "")
+        password = unquote(parts.password or "")
+    else:
+        raw = clean
+        if "@" in raw:
+            creds_part, host_part = raw.rsplit("@", 1)
+            if ":" not in creds_part:
+                raise ValueError(f"Invalid proxy credentials format: {clean}")
+            username, password = creds_part.split(":", 1)
+            raw = host_part
 
-    if ":" not in clean:
-        raise ValueError(f"Invalid proxy format: {clean}")
+        parts = raw.split(":")
+        if len(parts) == 2:
+            host, port_text = parts
+            port = int(port_text)
+        elif len(parts) == 4:
+            # Support both host:port:user:pass and user:pass:host:port
+            if parts[1].isdigit() and not parts[3].isdigit():
+                host, port_text, username, password = parts
+            elif parts[3].isdigit() and not parts[1].isdigit():
+                username, password, host, port_text = parts
+            elif parts[1].isdigit():
+                host, port_text, username, password = parts
+            else:
+                username, password, host, port_text = parts
+            port = int(port_text)
+        else:
+            raise ValueError(f"Unsupported proxy format: {clean}")
 
-    return f"http://{clean}"
+        host = str(host or "").strip()
+
+    if not host:
+        raise ValueError(f"Missing proxy host: {clean}")
+    if port <= 0 or port > 65535:
+        raise ValueError(f"Invalid proxy port: {clean}")
+
+    if scheme == "https":
+        scheme = "http"
+    if scheme == "socks":
+        scheme = "socks5"
+
+    if scheme not in ("http", "socks4", "socks5", "quic"):
+        raise ValueError(f"Unsupported proxy scheme '{scheme}' in: {clean}")
+
+    # Chrome does not reliably support username/password auth for SOCKS proxies.
+    if scheme in ("socks4", "socks5") and (username or password):
+        raise ValueError(
+            f"SOCKS proxy auth is not supported for automated Chrome sessions: {clean}"
+        )
+
+    return {
+        "scheme": scheme,
+        "host": host,
+        "port": int(port),
+        "username": str(username or "").strip(),
+        "password": str(password or ""),
+    }
+
+
+def _proxy_server_from_config(proxy_config: dict) -> str:
+    if not proxy_config:
+        return ""
+    return f"{proxy_config['scheme']}://{proxy_config['host']}:{proxy_config['port']}"
+
+
+def _start_local_proxy_tunnel(proxy_config: dict):
+    username = str(proxy_config.get("username") or "").strip()
+    password = str(proxy_config.get("password") or "")
+    if not username and not password:
+        return _proxy_server_from_config(proxy_config), None
+
+    scheme = str(proxy_config.get("scheme") or "http").strip().lower()
+    if scheme != "http":
+        raise ValueError("Authenticated proxy tunnel currently supports only HTTP upstream proxies")
+
+    host = str(proxy_config.get("host") or "").strip()
+    port = int(proxy_config.get("port") or 0)
+    if not host or port <= 0:
+        raise ValueError("Invalid upstream proxy config for authenticated tunnel")
+
+    token = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
+    auth_header = f"Basic {token}"
+
+    server = _AuthenticatedForwardProxy(
+        ("127.0.0.1", 0),
+        _AuthenticatedForwardProxyHandler,
+        host,
+        port,
+        auth_header,
+    )
+    _LOCAL_PROXY_SERVERS.append(server)
+
+    thread = threading.Thread(
+        target=server.serve_forever,
+        name=f"proxy_tunnel_{host}_{port}",
+        daemon=True,
+    )
+    thread.start()
+
+    local_host, local_port = server.server_address
+    return f"http://{local_host}:{local_port}", server
+
+
+def _build_proxy_auth_extension(proxy_config: dict) -> str:
+    """Create a temporary MV3 extension that supplies proxy credentials."""
+    username = str(proxy_config.get("username") or "").strip()
+    password = str(proxy_config.get("password") or "")
+    if not username and not password:
+        return ""
+
+    ext_dir = tempfile.mkdtemp(prefix="ig_proxy_auth_")
+    _TEMP_PROXY_EXTENSION_DIRS.append(ext_dir)
+
+    manifest = {
+        "name": "IG Proxy Auth",
+        "version": "1.0.0",
+        "manifest_version": 3,
+        "permissions": [
+            "webRequest",
+            "webRequestAuthProvider",
+        ],
+        "host_permissions": ["<all_urls>"],
+        "background": {"service_worker": "background.js"},
+    }
+
+    with open(os.path.join(ext_dir, "manifest.json"), "w", encoding="utf-8") as fh:
+        json.dump(manifest, fh)
+
+    background_js = (
+        "chrome.webRequest.onAuthRequired.addListener("
+        " function(details, callbackFn) {"
+        "  if (!details || !details.isProxy) { callbackFn({}); return; }"
+        "  callbackFn({authCredentials: {"
+        f"   username: {json.dumps(username)},"
+        f"   password: {json.dumps(password)}"
+        "  }});"
+        " },"
+        " {urls: ['<all_urls>']},"
+        " ['asyncBlocking']"
+        ");"
+    )
+
+    with open(os.path.join(ext_dir, "background.js"), "w", encoding="utf-8") as fh:
+        fh.write(background_js)
+
+    return ext_dir
 
 
 def _mask_proxy_for_log(proxy_server: str) -> str:
@@ -309,9 +641,21 @@ def create_driver(headless=False, proxy=None):
     options.add_argument("--disable-notifications")
     options.add_argument(f"--user-agent={random.choice(USER_AGENTS)}")
 
-    proxy_server = _normalize_proxy_server(proxy)
+    proxy_config = _parse_proxy_config(proxy)
+    proxy_server = _proxy_server_from_config(proxy_config)
+    has_proxy_auth = bool(proxy_config.get("username") or proxy_config.get("password"))
+    local_tunnel_server = None
     if proxy_server:
-        options.add_argument(f"--proxy-server={proxy_server}")
+        effective_proxy = proxy_server
+        if has_proxy_auth:
+            effective_proxy, local_tunnel_server = _start_local_proxy_tunnel(proxy_config)
+            logger.info(
+                "[Browser] Proxy auth tunnel enabled: "
+                f"{_mask_proxy_for_log(effective_proxy)} -> {_mask_proxy_for_log(proxy_server)}"
+            )
+
+        options.add_argument(f"--proxy-server={effective_proxy}")
+        options.add_argument("--proxy-bypass-list=<-loopback>")
         logger.info(f"[Browser] Proxy enabled: {_mask_proxy_for_log(proxy_server)}")
 
     if headless:
@@ -322,6 +666,9 @@ def create_driver(headless=False, proxy=None):
         use_subprocess=True,
         version_main=chrome_version,
     )
+
+    if local_tunnel_server is not None:
+        setattr(driver, "_local_proxy_tunnel", local_tunnel_server)
 
     # Additional stealth: override navigator properties
     driver.execute_script("""
@@ -343,6 +690,24 @@ def close_driver(driver):
     """Safely close the browser driver (handles Windows cleanup errors)."""
     if not driver:
         return
+
+    tunnel = getattr(driver, "_local_proxy_tunnel", None)
+    if tunnel is not None:
+        try:
+            tunnel.shutdown()
+        except Exception:
+            pass
+        try:
+            tunnel.server_close()
+        except Exception:
+            pass
+        try:
+            _LOCAL_PROXY_SERVERS.remove(tunnel)
+        except ValueError:
+            pass
+        except Exception:
+            pass
+
     try:
         driver.close()
     except Exception:

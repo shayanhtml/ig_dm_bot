@@ -103,6 +103,13 @@ def _ensure_account_custom_messages_column(conn):
     )
 
 
+def _ensure_account_proxy_column(conn):
+    if "proxy" in _table_columns(conn, "accounts"):
+        return
+    conn.execute("ALTER TABLE accounts ADD COLUMN proxy TEXT NOT NULL DEFAULT ''")
+    conn.execute("UPDATE accounts SET proxy = '' WHERE proxy IS NULL")
+
+
 def _normalize_account_model_label(value) -> str:
     clean = str(value or "").strip().lstrip("@")
     key = clean.lower()
@@ -172,7 +179,8 @@ def init_db():
                 password TEXT,
                 owner_username TEXT NOT NULL DEFAULT 'master',
                 model_label TEXT NOT NULL DEFAULT '',
-                custom_messages_json TEXT NOT NULL DEFAULT '[]'
+                custom_messages_json TEXT NOT NULL DEFAULT '[]',
+                proxy TEXT NOT NULL DEFAULT ''
             )
         """)
         
@@ -256,6 +264,7 @@ def init_db():
         _ensure_account_owner_column(conn)
         _ensure_account_model_label_column(conn)
         _ensure_account_custom_messages_column(conn)
+        _ensure_account_proxy_column(conn)
         _ensure_master_user(conn)
 
         conn.commit()
@@ -468,7 +477,7 @@ def get_accounts(owner_username: str = None, include_all: bool = False):
     try:
         if include_all:
             rows = conn.execute(
-                "SELECT username, password, owner_username, model_label, custom_messages_json "
+                "SELECT username, password, owner_username, model_label, custom_messages_json, proxy "
                 "FROM accounts ORDER BY owner_username, username"
             ).fetchall()
         else:
@@ -476,7 +485,7 @@ def get_accounts(owner_username: str = None, include_all: bool = False):
             if not clean_owner:
                 return []
             rows = conn.execute(
-                "SELECT username, password, owner_username, model_label, custom_messages_json "
+                "SELECT username, password, owner_username, model_label, custom_messages_json, proxy "
                 "FROM accounts WHERE owner_username = ? ORDER BY username",
                 (clean_owner,),
             ).fetchall()
@@ -495,6 +504,7 @@ def get_accounts(owner_username: str = None, include_all: bool = False):
                     "owner_username": r["owner_username"] or "master",
                     "model_label": str(r["model_label"] or "").strip(),
                     "custom_messages": _normalize_account_custom_messages(raw_custom_messages),
+                    "proxy": str(r["proxy"] or "").strip(),
                 }
             )
 
@@ -521,10 +531,11 @@ def save_accounts(accounts_list, owner_username: str = None, include_all: bool =
                 custom_messages_json = json.dumps(
                     _normalize_account_custom_messages(acc.get("custom_messages", []))
                 )
+                proxy = str(acc.get("proxy", "") or "").strip()
                 conn.execute(
-                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json) "
-                    "VALUES (?, ?, ?, ?, ?)",
-                    (username, password, owner, model_label, custom_messages_json),
+                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json, proxy) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (username, password, owner, model_label, custom_messages_json, proxy),
                 )
         else:
             clean_owner = str(owner_username or "").strip().lower()
@@ -541,10 +552,11 @@ def save_accounts(accounts_list, owner_username: str = None, include_all: bool =
                 custom_messages_json = json.dumps(
                     _normalize_account_custom_messages(acc.get("custom_messages", []))
                 )
+                proxy = str(acc.get("proxy", "") or "").strip()
                 conn.execute(
-                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json) "
-                    "VALUES (?, ?, ?, ?, ?)",
-                    (username, password, clean_owner, model_label, custom_messages_json),
+                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json, proxy) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (username, password, clean_owner, model_label, custom_messages_json, proxy),
                 )
 
         conn.commit()
