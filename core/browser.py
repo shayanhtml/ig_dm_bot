@@ -253,7 +253,47 @@ def _detect_chrome_version() -> int:
     return 145
 
 
-def create_driver(headless=False):
+def _normalize_proxy_server(proxy_value: str) -> str:
+    """Normalize proxy strings to a Chrome --proxy-server compatible value."""
+    clean = str(proxy_value or "").strip()
+    if not clean:
+        return ""
+
+    if "://" in clean:
+        return clean
+
+    if ":" not in clean:
+        raise ValueError(f"Invalid proxy format: {clean}")
+
+    return f"http://{clean}"
+
+
+def _mask_proxy_for_log(proxy_server: str) -> str:
+    clean = str(proxy_server or "").strip()
+    if not clean:
+        return ""
+
+    if "@" not in clean:
+        return clean
+
+    if "://" in clean:
+        scheme, rest = clean.split("://", 1)
+        prefix = f"{scheme}://"
+    else:
+        rest = clean
+        prefix = ""
+
+    creds, host = rest.rsplit("@", 1)
+    if ":" in creds:
+        username = creds.split(":", 1)[0]
+        safe_creds = f"{username}:***"
+    else:
+        safe_creds = "***"
+
+    return f"{prefix}{safe_creds}@{host}"
+
+
+def create_driver(headless=False, proxy=None):
     """
     Create an undetected Chrome browser instance with anti-detection measures.
     Auto-detects Chrome version to avoid driver mismatch.
@@ -268,6 +308,11 @@ def create_driver(headless=False):
     options.add_argument("--disable-popup-blocking")
     options.add_argument("--disable-notifications")
     options.add_argument(f"--user-agent={random.choice(USER_AGENTS)}")
+
+    proxy_server = _normalize_proxy_server(proxy)
+    if proxy_server:
+        options.add_argument(f"--proxy-server={proxy_server}")
+        logger.info(f"[Browser] Proxy enabled: {_mask_proxy_for_log(proxy_server)}")
 
     if headless:
         options.add_argument("--headless=new")

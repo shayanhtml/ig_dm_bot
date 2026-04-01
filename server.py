@@ -520,7 +520,7 @@ def api_accounts_queue():
             {
                 "username": str(acc.get("username", "")).strip(),
                 "owner_username": str(acc.get("owner_username", "")).strip() or "master",
-            "model_label": str(acc.get("model_label", "")).strip(),
+        "model_label": str(acc.get("model_label", "")).strip(),
             }
             for acc in queue_rows
             if str(acc.get("username", "")).strip()

@@ -452,6 +452,16 @@
             <input type="text" id="set_TELEGRAM_CHAT_IDS" placeholder="8592007309, 123456789">
           </div>
         </div>
+
+        <!-- Proxies -->
+        <div class="card">
+          <h3 style="margin-bottom: 1.5rem; color:var(--primary);"><i class="fas fa-network-wired"></i> Proxy Pool</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Optional. Add one proxy per line. The bot assigns a random proxy to each account each run.</p>
+          <div class="form-group">
+            <label>Proxy List</label>
+            <textarea id="set_PROXY_LIST" rows="6" placeholder="host:port&#10;http://host:port&#10;username:password@host:port"></textarea>
+          </div>
+        </div>
         
         <!-- Quotas -->
         <div class="card">
@@ -1247,6 +1257,8 @@
             let val = globalSettings[key];
             if (key === 'TELEGRAM_CHAT_IDS' && Array.isArray(val)) {
               val = val.join(', ');
+            } else if (key === 'PROXY_LIST' && Array.isArray(val)) {
+              val = val.join('\n');
             }
             el.value = val;
           }
@@ -1839,6 +1851,12 @@
         if (el.type === 'number') val = Number(val);
         else if (key === 'TELEGRAM_CHAT_IDS') {
           val = val.split(',').map(x => x.trim()).filter(x => x);
+        } else if (key === 'PROXY_LIST') {
+          val = String(val || '')
+            .split('\n')
+            .flatMap(line => line.split(','))
+            .map(x => x.trim())
+            .filter(x => x);
         }
         
         payload[key] = val;

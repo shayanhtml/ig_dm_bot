@@ -169,6 +169,57 @@ def _build_account_pool_summary(accounts: list, models: list) -> str:
     return "\n".join(lines)
 
 
+def _normalize_proxy_list(raw_proxy_list) -> list:
+    """Normalize proxy setting to a de-duplicated list of non-empty strings."""
+    if isinstance(raw_proxy_list, str):
+        candidates = [
+            part.strip()
+            for line in raw_proxy_list.splitlines()
+            for part in line.split(",")
+        ]
+    elif isinstance(raw_proxy_list, list):
+        candidates = [str(item or "").strip() for item in raw_proxy_list]
+    else:
+        return []
+
+    clean = []
+    seen = set()
+    for item in candidates:
+        if not item:
+            continue
+        key = item.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        clean.append(item)
+    return clean
+
+
+def _mask_proxy(proxy_value: str) -> str:
+    """Mask proxy credentials for logs and Telegram output."""
+    clean = str(proxy_value or "").strip()
+    if not clean:
+        return ""
+
+    if "@" not in clean:
+        return clean
+
+    if "://" in clean:
+        scheme, rest = clean.split("://", 1)
+        prefix = f"{scheme}://"
+    else:
+        rest = clean
+        prefix = ""
+
+    creds, host = rest.rsplit("@", 1)
+    if ":" in creds:
+        username = creds.split(":", 1)[0]
+        safe_creds = f"{username}:***"
+    else:
+        safe_creds = "***"
+    return f"{prefix}{safe_creds}@{host}"
+
+
 def _normalize_message_list(raw_messages) -> list:
     """Normalize a raw messages array into non-empty trimmed strings."""
     if not isinstance(raw_messages, list):
@@ -229,6 +280,7 @@ def run_bot(stop_event=None, account_owner=None):
         model_message_map = _normalize_model_message_map(
             database.get_setting("MODEL_MESSAGE_MAP") or {}
         )
+        proxy_pool = _normalize_proxy_list(database.get_setting("PROXY_LIST", []))
 
         # If explicit model list is empty, derive targets from model-specific sets.
         if not models and model_message_map:
@@ -252,7 +304,8 @@ def run_bot(stop_event=None, account_owner=None):
 
     logger.info(
         f"Loaded {len(accounts)} accounts, {len(models)} models, "
-        f"{len(messages)} general messages, {len(model_message_map)} model-specific sets"
+        f"{len(messages)} general messages, {len(model_message_map)} model-specific sets, "
+        f"{len(proxy_pool)} proxies"
     )
     if account_owner:
         logger.info(f"Account scope: employee @{account_owner}")
@@ -298,6 +351,7 @@ def run_bot(stop_event=None, account_owner=None):
             account_models = _models_for_account(account, models)
             account_custom_messages = _normalize_message_list(account.get("custom_messages"))
             account_label_display = str(account.get("model_label", "")).strip().lstrip("@") or ""
+            assigned_proxy = random.choice(proxy_pool) if proxy_pool else ""
 
             log_and_telegram(f"━━━ Switching to account: @{username} ━━━")
             if account_model_key:
@@ -305,13 +359,27 @@ def run_bot(stop_event=None, account_owner=None):
             else:
                 log_and_telegram(f"[{username}] 🏷️ Marketing label: Generic")
 
+            if assigned_proxy:
+                log_and_telegram(f"[{username}] 🌐 Proxy: {_mask_proxy(assigned_proxy)}")
+            else:
+                log_and_telegram(f"[{username}] 🌐 Proxy: Direct (no proxy)")
+
             telegram_bot.stats["current_account"] = username
             telegram_bot.stats["accounts_used"] += 1
 
             # Create browser
             driver = None
             try:
-                driver = create_driver()
+                try:
+                    driver = create_driver(proxy=assigned_proxy or None)
+                except Exception as proxy_error:
+                    if assigned_proxy:
+                        log_and_telegram(
+                            f"[{username}] ⚠️ Proxy launch failed ({_mask_proxy(assigned_proxy)}): {proxy_error}. Retrying direct."
+                        )
+                        driver = create_driver()
+                    else:
+                        raise
                 _register_driver(driver)
             except Exception as e:
                 log_and_telegram(f"❌ Failed to create browser for @{username}: {e}")
