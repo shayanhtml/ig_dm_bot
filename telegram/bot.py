@@ -161,6 +161,50 @@ class TelegramBot:
             f"⏰ Started : {self._started_ago()}"
         )
 
+    def send_24h_dm_summary(self, summary: dict):
+        """Send last-24h DM totals with per-account breakdown."""
+        payload = summary if isinstance(summary, dict) else {}
+
+        try:
+            hours = int(payload.get("hours", 24) or 24)
+        except Exception:
+            hours = 24
+
+        try:
+            total_sent = int(payload.get("total_sent", 0) or 0)
+        except Exception:
+            total_sent = 0
+
+        raw_by_account = payload.get("by_account", [])
+        by_account = raw_by_account if isinstance(raw_by_account, list) else []
+
+        line_limit = 60
+        lines = []
+        for item in by_account[:line_limit]:
+            if not isinstance(item, dict):
+                continue
+
+            account = str(item.get("sender_account") or "").strip() or "unknown"
+            try:
+                count = int(item.get("count", 0) or 0)
+            except Exception:
+                count = 0
+
+            lines.append(f"• `@{account}`: `{count}`")
+
+        if len(by_account) > line_limit:
+            lines.append(f"• ... and `{len(by_account) - line_limit}` more accounts")
+
+        if not lines:
+            lines.append("• _No DM activity recorded in this window._")
+
+        self.send(
+            f"🧾 *DM SUMMARY (LAST {hours}H)*\n\n"
+            f"✉️ *Total Sent:* `{total_sent}`\n\n"
+            f"*Per Account:*\n"
+            + "\n".join(lines)
+        )
+
     def send_error(self, error: str):
         """Send an error alert."""
         self.send(f"❌ *ERROR*\n\n```\n{error[:500]}\n```")

@@ -218,6 +218,24 @@ def init_db():
             )
         """)
 
+        # DM Event Log Table (full per-attempt history for reporting)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS dm_event_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sender_account TEXT NOT NULL,
+                target_username TEXT NOT NULL,
+                model_username TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'sent',
+                timestamp TEXT NOT NULL
+            )
+        """)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_dm_event_log_timestamp ON dm_event_log(timestamp DESC)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_dm_event_log_sender ON dm_event_log(sender_account, timestamp DESC)"
+        )
+
         # Dashboard Users Table
         conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -703,6 +721,97 @@ def log_dm_sent(username):
             (username, now_str)
         )
         conn.commit()
+    finally:
+        conn.close()
+
+
+def log_dm_event(sender_account: str, target_username: str, model_username: str = "", status: str = "sent"):
+    """Append one DM attempt event for reporting and auditing."""
+    clean_sender = str(sender_account or "").strip()
+    clean_target = str(target_username or "").strip()
+    clean_model = str(model_username or "").strip().lstrip("@")
+    clean_status = str(status or "").strip().lower() or "sent"
+
+    if not clean_sender or not clean_target:
+        return
+
+    conn = _get_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO dm_event_log (sender_account, target_username, model_username, status, timestamp)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                clean_sender,
+                clean_target,
+                clean_model,
+                clean_status,
+                datetime.now().isoformat(timespec="seconds"),
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_dm_sent_summary_last_hours(hours: int = 24, include_all_accounts: bool = False):
+    """Return sent DM totals for the last N hours, grouped by sender account."""
+    safe_hours = max(1, min(int(hours or 24), 720))
+    cutoff_dt = datetime.now() - timedelta(hours=safe_hours)
+    cutoff_iso = cutoff_dt.isoformat(timespec="seconds")
+
+    conn = _get_connection()
+    try:
+        total_row = conn.execute(
+            "SELECT COUNT(*) AS c FROM dm_event_log WHERE status = 'sent' AND timestamp >= ?",
+            (cutoff_iso,),
+        ).fetchone()
+        total_sent = int(total_row["c"] if total_row and total_row["c"] is not None else 0)
+
+        rows = conn.execute(
+            """
+            SELECT sender_account, COUNT(*) AS sent_count
+            FROM dm_event_log
+            WHERE status = 'sent' AND timestamp >= ?
+            GROUP BY sender_account
+            ORDER BY sent_count DESC, sender_account ASC
+            """,
+            (cutoff_iso,),
+        ).fetchall()
+
+        counts_by_account = {}
+        for row in rows:
+            sender = str(row["sender_account"] or "").strip()
+            if not sender:
+                continue
+            counts_by_account[sender] = int(row["sent_count"] or 0)
+
+        if include_all_accounts:
+            account_rows = conn.execute(
+                "SELECT username FROM accounts ORDER BY username"
+            ).fetchall()
+            for row in account_rows:
+                username = str(row["username"] or "").strip()
+                if not username:
+                    continue
+                counts_by_account.setdefault(username, 0)
+
+        by_account = [
+            {"sender_account": name, "count": count}
+            for name, count in sorted(
+                counts_by_account.items(),
+                key=lambda item: (-item[1], item[0].lower()),
+            )
+        ]
+
+        return {
+            "hours": safe_hours,
+            "cutoff": cutoff_iso,
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "total_sent": total_sent,
+            "by_account": by_account,
+        }
     finally:
         conn.close()
 

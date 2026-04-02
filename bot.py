@@ -9,6 +9,7 @@ import time
 import random
 import logging
 import threading
+from datetime import datetime, timedelta
 
 from config.settings import LOGS_DIR
 from config import database
@@ -28,6 +29,7 @@ from telegram.bot import telegram_bot
 logger = logging.getLogger("model_dm_bot")
 _active_drivers = set()
 _active_drivers_lock = threading.Lock()
+DM_SUMMARY_WINDOW_HOURS = 24
 
 
 def _setting_int(key: str) -> int:
@@ -116,6 +118,63 @@ def log_and_telegram(msg: str):
     """Log a message and add it to Telegram's log buffer."""
     logger.info(msg)
     telegram_bot.add_log(msg)
+
+
+def _parse_iso_datetime(raw_value):
+    text = str(raw_value or "").strip()
+    if not text:
+        return None
+
+    normalized = text.replace("Z", "+00:00")
+    try:
+        dt = datetime.fromisoformat(normalized)
+    except Exception:
+        return None
+
+    if dt.tzinfo is not None:
+        try:
+            return dt.astimezone().replace(tzinfo=None)
+        except Exception:
+            return dt.replace(tzinfo=None)
+    return dt
+
+
+def _is_dm_summary_due(hours: int = DM_SUMMARY_WINDOW_HOURS) -> bool:
+    safe_hours = max(1, int(hours or DM_SUMMARY_WINDOW_HOURS))
+    last_sent_raw = database.get_setting("DM_24H_REPORT_LAST_SENT_AT", "")
+    last_sent = _parse_iso_datetime(last_sent_raw)
+
+    # First run initializes the timer; the first summary will be sent after the window elapses.
+    if last_sent is None:
+        database.save_settings({"DM_24H_REPORT_LAST_SENT_AT": datetime.now().isoformat(timespec="seconds")})
+        return False
+
+    return (datetime.now() - last_sent) >= timedelta(hours=safe_hours)
+
+
+def _maybe_send_24h_dm_summary(hours: int = DM_SUMMARY_WINDOW_HOURS, force: bool = False) -> bool:
+    safe_hours = max(1, int(hours or DM_SUMMARY_WINDOW_HOURS))
+
+    try:
+        if not force and not _is_dm_summary_due(safe_hours):
+            return False
+
+        summary = database.get_dm_sent_summary_last_hours(
+            hours=safe_hours,
+            include_all_accounts=True,
+        )
+        telegram_bot.send_24h_dm_summary(summary)
+        database.save_settings({"DM_24H_REPORT_LAST_SENT_AT": datetime.now().isoformat(timespec="seconds")})
+
+        logger.info(
+            "24h DM summary sent to Telegram (window=%sh, total_sent=%s)",
+            safe_hours,
+            summary.get("total_sent", 0),
+        )
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to send 24h DM summary: {e}")
+        return False
 
 
 def _normalize_model_key(model_username: str) -> str:
@@ -258,7 +317,6 @@ def run_bot(stop_event=None, account_owner=None):
         logger.info(f"Account scope: employee @{account_owner}")
 
     # Load DM log and build 24-hour exclusion set
-    from datetime import datetime, timedelta
     dm_log = database.get_dm_logs()
     already_dmd = set()
     cutoff_time = datetime.now() - timedelta(hours=24)
@@ -282,6 +340,7 @@ def run_bot(stop_event=None, account_owner=None):
     telegram_bot.start_polling()
     telegram_bot.send_startup()
     telegram_bot.send_account_pool_summary(_build_account_pool_summary(accounts, models))
+    _maybe_send_24h_dm_summary(hours=DM_SUMMARY_WINDOW_HOURS)
     telegram_bot.stats["status"] = "Running"
 
     total_dms_sent = 0
@@ -289,6 +348,8 @@ def run_bot(stop_event=None, account_owner=None):
 
     try:
         for account in accounts:
+            _maybe_send_24h_dm_summary(hours=DM_SUMMARY_WINDOW_HOURS)
+
             if stop_event and stop_event.is_set():
                 log_and_telegram("🛑 Stop requested. Ending current session.")
                 break
@@ -332,6 +393,8 @@ def run_bot(stop_event=None, account_owner=None):
 
                 # Process each model allowed for this account
                 for model_username in account_models:
+                    _maybe_send_24h_dm_summary(hours=DM_SUMMARY_WINDOW_HOURS)
+
                     if stop_event and stop_event.is_set():
                         log_and_telegram("🛑 Stop requested, breaking model loop.")
                         break
@@ -440,6 +503,7 @@ def run_bot(stop_event=None, account_owner=None):
         log_and_telegram(f"❌ Fatal error: {e}")
         telegram_bot.send_error(str(e))
     finally:
+        _maybe_send_24h_dm_summary(hours=DM_SUMMARY_WINDOW_HOURS)
         telegram_bot.send_session_complete(total_dms_sent, len(completed_model_keys))
         telegram_bot.stats["status"] = "Stopped"
         telegram_bot.stop_polling()
@@ -635,21 +699,36 @@ def _dm_list(
 
         log_and_telegram(f"[{sender}] DMing @{target_user}...")
         result = send_dm(driver, target_user, message)
+        event_status = "failed"
 
         if result == DMResult.SENT:
             sent += 1
             already_dmd.add(target_user)
             database.log_dm_sent(target_user)
+            event_status = "sent"
             log_and_telegram(f"[{sender}] ✅ DM sent to @{target_user} ({sent}/{max_dms})")
         elif result == DMResult.CANT_MESSAGE:
+            event_status = "cant_message"
             log_and_telegram(f"[{sender}] ⚠️ Can't message @{target_user}")
             already_dmd.add(target_user)  # Don't retry
         elif result == DMResult.USER_NOT_FOUND:
+            event_status = "user_not_found"
             log_and_telegram(f"[{sender}] ❌ @{target_user} not found")
             already_dmd.add(target_user)
         else:
+            event_status = str(result).strip().lower() or "failed"
             telegram_bot.stats["dms_failed"] += 1
             log_and_telegram(f"[{sender}] ❌ DM to @{target_user} failed: {result}")
+
+        try:
+            database.log_dm_event(
+                sender_account=sender,
+                target_username=target_user,
+                model_username=model,
+                status=event_status,
+            )
+        except Exception as e:
+            logger.debug(f"[{sender}] Failed to log DM event for @{target_user}: {e}")
 
         # Check for challenges mid-session
         challenge = detect_challenge(driver)
