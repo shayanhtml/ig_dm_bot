@@ -13,7 +13,6 @@ DATABASE_PATH = os.path.join(DATA_DIR, "app_data.db")
 DEFAULT_DB_SETTINGS = {
     "TELEGRAM_BOT_TOKEN": "8671289565:AAFxbYRSVvPkFRUaymh2T7BG6hyE-oIXXnE",
     "TELEGRAM_CHAT_IDS": ["128663994"],
-    "PROXY_LIST": [],
     "MODEL_MESSAGE_MAP": {},
     "MODEL_MESSAGE_META": {},
     "DM_MIN_PER_MODEL": 5,
@@ -562,6 +561,26 @@ def save_accounts(accounts_list, owner_username: str = None, include_all: bool =
         conn.commit()
     except sqlite3.IntegrityError:
         raise ValueError("One or more account usernames are already assigned")
+    finally:
+        conn.close()
+
+
+def update_account_proxy(account_username: str, proxy_value: str) -> bool:
+    """Update proxy for an existing IG account username."""
+    clean_username = str(account_username or "").strip()
+    if not clean_username:
+        raise ValueError("Account username is required")
+
+    clean_proxy = str(proxy_value or "").strip()
+
+    conn = _get_connection()
+    try:
+        result = conn.execute(
+            "UPDATE accounts SET proxy = ? WHERE username = ?",
+            (clean_proxy, clean_username),
+        )
+        conn.commit()
+        return (result.rowcount or 0) > 0
     finally:
         conn.close()
 

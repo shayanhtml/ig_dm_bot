@@ -142,6 +142,32 @@ def _normalize_text_list(raw_items):
   return clean
 
 
+def _mask_proxy_for_view(proxy_value):
+  """Mask proxy credentials for read-only queue display."""
+  clean = str(proxy_value or "").strip()
+  if not clean:
+    return ""
+
+  if "@" not in clean:
+    return clean
+
+  if "://" in clean:
+    scheme, rest = clean.split("://", 1)
+    prefix = f"{scheme}://"
+  else:
+    rest = clean
+    prefix = ""
+
+  creds, host = rest.rsplit("@", 1)
+  if ":" in creds:
+    username = creds.split(":", 1)[0]
+    safe_creds = f"{username}:***"
+  else:
+    safe_creds = "***"
+
+  return f"{prefix}{safe_creds}@{host}"
+
+
 # ── Dashboard HTML ──
 DASHBOARD_HTML = """
 <!DOCTYPE html>
@@ -477,7 +503,7 @@ def api_get_config():
     user_ctx = _current_user_context()
     data = {
         "accounts": [],
-      "accounts_queue": [],
+        "accounts_queue": [],
         "models": [],
         "messages": [],
         "settings": {},
@@ -488,19 +514,30 @@ def api_get_config():
         if user_ctx["role"] == "master":
             data["accounts"] = database.get_accounts(include_all=True)
             data["users"] = database.get_users()
+            queue_rows = database.get_accounts(include_all=True)
+            data["accounts_queue"] = [
+                {
+                    "username": str(acc.get("username", "")).strip(),
+                    "owner_username": str(acc.get("owner_username", "")).strip() or "master",
+                    "model_label": str(acc.get("model_label", "")).strip(),
+                    "proxy": _mask_proxy_for_view(acc.get("proxy", "")),
+                }
+                for acc in queue_rows
+                if str(acc.get("username", "")).strip()
+            ]
         else:
             data["accounts"] = database.get_accounts(owner_username=user_ctx["username"])
-
-        queue_rows = database.get_accounts(include_all=True)
-        data["accounts_queue"] = [
-            {
-                "username": str(acc.get("username", "")).strip(),
-                "owner_username": str(acc.get("owner_username", "")).strip() or "master",
-                "model_label": str(acc.get("model_label", "")).strip(),
-            }
-            for acc in queue_rows
-            if str(acc.get("username", "")).strip()
-        ]
+            queue_rows = database.get_accounts(include_all=True)
+            data["accounts_queue"] = [
+                {
+                    "username": str(acc.get("username", "")).strip(),
+                    "owner_username": str(acc.get("owner_username", "")).strip() or "master",
+                    "model_label": str(acc.get("model_label", "")).strip(),
+                    "proxy": _mask_proxy_for_view(acc.get("proxy", "")),
+                }
+                for acc in queue_rows
+                if str(acc.get("username", "")).strip()
+            ]
 
         data["models"] = database.get_models()
         data["messages"] = database.get_messages()
@@ -512,6 +549,7 @@ def api_get_config():
 
 @app.route("/api/accounts/queue", methods=["GET"])
 @login_required
+@master_required
 def api_accounts_queue():
     """Return sanitized cross-employee IG account queue."""
     try:
@@ -521,6 +559,7 @@ def api_accounts_queue():
                 "username": str(acc.get("username", "")).strip(),
                 "owner_username": str(acc.get("owner_username", "")).strip() or "master",
             "model_label": str(acc.get("model_label", "")).strip(),
+            "proxy": _mask_proxy_for_view(acc.get("proxy", "")),
             }
             for acc in queue_rows
             if str(acc.get("username", "")).strip()
@@ -529,6 +568,55 @@ def api_accounts_queue():
     except Exception as e:
         logger.error(f"Error reading accounts queue: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/accounts/proxy", methods=["POST"])
+@login_required
+def api_update_account_proxy():
+  """Allow proxy updates only for accessible accounts (owner or master)."""
+  try:
+    payload = request.get_json(silent=True) or {}
+    updates = payload.get("updates", [])
+    if not isinstance(updates, list):
+      return jsonify({"success": False, "error": "updates must be a list"}), 400
+
+    user_ctx = _current_user_context()
+    changed_usernames = []
+    for idx, item in enumerate(updates):
+      if not isinstance(item, dict):
+        return jsonify({"success": False, "error": f"Invalid update entry at index {idx}"}), 400
+
+      username = str(item.get("username", "")).strip()
+      if not username:
+        continue
+
+      if not database.user_can_access_account(username, user_ctx["username"], user_ctx["role"]):
+        return jsonify({"success": False, "error": f"Forbidden for account '{username}'"}), 403
+
+      proxy_value = str(item.get("proxy", "") or "").strip()
+      updated = database.update_account_proxy(username, proxy_value)
+      if updated:
+        changed_usernames.append(username)
+
+    if changed_usernames:
+      _log_actor_action(
+        "update_account_proxy",
+        target_type="config",
+        target_value="accounts.proxy",
+        details={
+          "updated_count": len(changed_usernames),
+          "usernames": ", ".join(changed_usernames[:20]) + (" ..." if len(changed_usernames) > 20 else ""),
+          "actor_role": user_ctx.get("role", "employee"),
+        },
+        employees_only=True,
+      )
+
+    return jsonify({"success": True, "updated_count": len(changed_usernames)})
+  except ValueError as e:
+    return jsonify({"success": False, "error": str(e)}), 400
+  except Exception as e:
+    logger.error(f"Error updating account proxy values: {e}")
+    return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/config/<target>", methods=["POST"])
 @login_required

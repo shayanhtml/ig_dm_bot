@@ -104,6 +104,35 @@
     th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--surface-border); }
     th { color: var(--text-muted); font-weight: 500; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
     tr:last-child td { border-bottom: none; }
+    .owner-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.85rem; }
+    .owner-tab-btn {
+      border: 1px solid var(--surface-border);
+      background: rgba(255,255,255,0.02);
+      color: var(--text-muted);
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .owner-tab-btn.active {
+      border-color: rgba(216,155,2,0.5);
+      background: rgba(216,155,2,0.16);
+      color: #f3c24d;
+    }
+    #accountsTable td { vertical-align: middle; }
+    #accountsTable td:last-child { white-space: nowrap; }
+    .accounts-actions { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 34px; }
+    .proxy-readonly {
+      display: inline-block;
+      max-width: 220px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
 
     ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.65); }
@@ -335,6 +364,8 @@
         <h1>Instagram Accounts</h1>
         <button class="btn btn-primary btn-sm" onclick="addAccountRow()"><i class="fas fa-plus"></i> Add Account</button>
       </div>
+
+      <div id="accountsOwnerTabs" class="owner-tabs"></div>
       
       <div class="card">
         <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem;">
@@ -452,17 +483,6 @@
           <div class="form-group">
             <label>Chat IDs (Comma separated for multiple)</label>
             <input type="text" id="set_TELEGRAM_CHAT_IDS" placeholder="8592007309, 123456789">
-          </div>
-        </div>
-
-        <div class="card">
-          <h3 style="margin-bottom: 1.5rem; color:var(--primary);"><i class="fas fa-network-wired"></i> Proxy Pool</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
-            Add one proxy per line. On each bot run, accounts are assigned proxies from this list so each account uses a different proxy (until the pool is exhausted).
-          </p>
-          <div class="form-group">
-            <label>Proxy List</label>
-            <textarea id="set_PROXY_LIST" rows="7" placeholder="user:pass@host:port&#10;host:port&#10;socks5://host:port"></textarea>
           </div>
         </div>
         
@@ -653,6 +673,8 @@
     let globalAllActivity = [];
     let globalAllActivityByDay = [];
     let globalQueueAccounts = [];
+    let globalAccountOwnerTabs = [];
+    let activeAccountOwnerTab = 'all';
     let activeEditUser = '';
     let activeCookieUser = "";
     let activeCookieRowIndex = -1;
@@ -809,8 +831,126 @@
         .replace(/'/g, '&#39;');
     }
 
+    function maskProxyForDisplay(value) {
+      const clean = String(value || '').trim();
+      if (!clean || !clean.includes('@')) {
+        return clean;
+      }
+
+      let prefix = '';
+      let rest = clean;
+      if (clean.includes('://')) {
+        const parts = clean.split('://');
+        prefix = `${parts[0]}://`;
+        rest = parts.slice(1).join('://');
+      }
+
+      const atIndex = rest.lastIndexOf('@');
+      if (atIndex < 0) {
+        return clean;
+      }
+
+      const creds = rest.slice(0, atIndex);
+      const host = rest.slice(atIndex + 1);
+      const colonIndex = creds.indexOf(':');
+      const safeCreds = colonIndex >= 0 ? `${creds.slice(0, colonIndex)}:***` : '***';
+      return `${prefix}${safeCreds}@${host}`;
+    }
+
     function normalizeModelKey(value) {
       return String(value || '').trim().replace(/^@+/, '').toLowerCase();
+    }
+
+    function normalizeOwnerKey(value) {
+      const clean = String(value || '').trim().toLowerCase();
+      return clean || 'master';
+    }
+
+    function buildAccountsOwnerTabs() {
+      const owners = Array.from(new Set(
+        (globalAccounts || []).map(acc => normalizeOwnerKey(acc.owner_username || 'master'))
+      )).sort();
+
+      if (!globalIsMaster) {
+        const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
+        if (!owners.includes(myOwnerKey)) {
+          owners.unshift(myOwnerKey);
+        }
+      }
+
+      globalAccountOwnerTabs = owners;
+
+      if (!globalIsMaster) {
+        const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
+        if (!owners.includes(activeAccountOwnerTab)) {
+          activeAccountOwnerTab = myOwnerKey;
+        }
+        return;
+      }
+
+      if (activeAccountOwnerTab === 'all') {
+        return;
+      }
+
+      if (!owners.includes(activeAccountOwnerTab)) {
+        activeAccountOwnerTab = 'all';
+      }
+    }
+
+    function setAccountsOwnerTab(ownerKey) {
+      if (ownerKey === 'all') {
+        if (!globalIsMaster) {
+          return;
+        }
+        activeAccountOwnerTab = 'all';
+      } else {
+        const normalized = normalizeOwnerKey(ownerKey);
+        if (!globalAccountOwnerTabs.includes(normalized)) {
+          return;
+        }
+        activeAccountOwnerTab = normalized;
+      }
+      renderAccountsOwnerTabs();
+      renderAccounts();
+    }
+
+    function renderAccountsOwnerTabs() {
+      const tabsEl = document.getElementById('accountsOwnerTabs');
+      if (!tabsEl) {
+        return;
+      }
+
+      if (!globalIsMaster) {
+        const chips = [];
+        const owners = globalAccountOwnerTabs.length
+          ? globalAccountOwnerTabs
+          : [normalizeOwnerKey(globalCurrentUser.username || 'employee')];
+
+        owners.forEach(owner => {
+          const safeOwner = escapeHtml(owner);
+          const activeClass = activeAccountOwnerTab === owner ? 'active' : '';
+          chips.push(
+            `<button type="button" class="owner-tab-btn ${activeClass}" onclick="setAccountsOwnerTab(decodeURIComponent('${encodeURIComponent(owner)}'))">@${safeOwner}</button>`
+          );
+        });
+
+        tabsEl.innerHTML = chips.join('');
+        return;
+      }
+
+      const chips = [];
+      const allActive = activeAccountOwnerTab === 'all' ? 'active' : '';
+      chips.push(`<button type="button" class="owner-tab-btn ${allActive}" onclick="setAccountsOwnerTab('all')">All Accounts</button>`);
+
+      globalAccountOwnerTabs.forEach(owner => {
+        const safeOwner = escapeHtml(owner);
+        const activeClass = activeAccountOwnerTab === owner ? 'active' : '';
+        chips.push(
+          `<button type="button" class="owner-tab-btn ${activeClass}" onclick="setAccountsOwnerTab(decodeURIComponent('${encodeURIComponent(owner)}'))">@${safeOwner}</button>`
+        );
+      });
+
+      tabsEl.innerHTML = chips.join('');
     }
 
     function parseMessageLines(raw) {
@@ -1155,6 +1295,7 @@
           username,
           password: '',
           model_label: item.model_label || '',
+          proxy: String(item.proxy || '').trim(),
           custom_messages: Array.isArray(item.custom_messages) ? item.custom_messages : [],
           owner_username: item.owner_username || '',
           cookies_raw: '',
@@ -1193,6 +1334,8 @@
 
         globalQueueAccounts = Array.isArray(data.accounts_queue) ? data.accounts_queue : [];
         mergeEmployeeQueueIntoAccounts();
+        buildAccountsOwnerTabs();
+        renderAccountsOwnerTabs();
         renderAccounts();
         
         // Populate Models
@@ -1261,8 +1404,6 @@
             let val = globalSettings[key];
             if (key === 'TELEGRAM_CHAT_IDS' && Array.isArray(val)) {
               val = val.join(', ');
-            } else if (key === 'PROXY_LIST' && Array.isArray(val)) {
-              val = val.join('\n');
             }
             el.value = val;
           }
@@ -1280,19 +1421,43 @@
       const tbody = document.querySelector('#accountsTable tbody');
       tbody.innerHTML = '';
 
-      if (!globalAccounts.length) {
+      const visibleIndexes = [];
+      const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
+      const employeeTabKey = activeAccountOwnerTab || myOwnerKey;
+      globalAccounts.forEach((acc, idx) => {
+        const ownerKey = normalizeOwnerKey(acc.owner_username || 'master');
+        if (!globalIsMaster) {
+          if (ownerKey === employeeTabKey) {
+            visibleIndexes.push(idx);
+          }
+          return;
+        }
+
+        if (activeAccountOwnerTab === 'all' || ownerKey === activeAccountOwnerTab) {
+          visibleIndexes.push(idx);
+        }
+      });
+
+      if (!visibleIndexes.length) {
         const cols = globalIsMaster ? 8 : 7;
-        tbody.innerHTML = `<tr><td colspan="${cols}" style="color: var(--text-muted); font-size:0.85rem;">No accounts added yet.</td></tr>`;
+        const message = (globalIsMaster && activeAccountOwnerTab !== 'all')
+          ? 'No accounts for this employee yet.'
+          : 'No accounts added yet.';
+        tbody.innerHTML = `<tr><td colspan="${cols}" style="color: var(--text-muted); font-size:0.85rem;">${message}</td></tr>`;
         return;
       }
 
-      globalAccounts.forEach((acc, i) => {
-        const isReadonlyQueue = !globalIsMaster && !!acc.shared_readonly;
+      visibleIndexes.forEach((i) => {
+        const acc = globalAccounts[i];
+        const ownerKey = normalizeOwnerKey(acc.owner_username || 'master');
+        const isReadonlyQueue = !globalIsMaster && (!!acc.shared_readonly || ownerKey !== myOwnerKey);
         const safeUser = escapeHtml(acc.username || '');
-        const safePass = escapeHtml(isReadonlyQueue ? '********' : (acc.password || ''));
+        const safePass = escapeHtml(acc.password || '');
         const safeModelLabel = escapeHtml(acc.model_label || '');
-        const safeProxy = escapeHtml(isReadonlyQueue ? '' : (acc.proxy || ''));
-        const hasProxy = !isReadonlyQueue && (acc.proxy || '').trim();
+        const rawProxy = String(acc.proxy || '').trim();
+        const safeProxy = escapeHtml(isReadonlyQueue ? '' : rawProxy);
+        const safeReadonlyProxy = escapeHtml(maskProxyForDisplay(rawProxy));
+        const hasProxy = !isReadonlyQueue && rawProxy;
         const messageCount = Array.isArray(acc.custom_messages)
           ? acc.custom_messages.filter(x => String(x || '').trim()).length
           : 0;
@@ -1302,8 +1467,20 @@
           : '';
 
         const proxyCell = isReadonlyQueue
-          ? `<td><span style="font-size:0.78rem; color:var(--text-muted);">—</span></td>`
+          ? `<td><span class="proxy-readonly" title="${safeReadonlyProxy || 'No proxy'}">${safeReadonlyProxy || '—'}</span></td>`
           : `<td><input type="text" id="acc_proxy_${i}" value="${safeProxy}" placeholder="host:port or user:pass@host:port" style="font-size:0.8rem;${hasProxy ? ' border-color: rgba(216,155,2,0.6);' : ''}"></td>`;
+
+        const userCell = isReadonlyQueue
+          ? `<td><span class="proxy-readonly" title="${safeUser || '—'}">${safeUser || '—'}</span></td>`
+          : `<td><input type="text" id="acc_user_${i}" value="${safeUser}"></td>`;
+
+        const passwordCell = isReadonlyQueue
+          ? `<td><span class="proxy-readonly" title="********">********</span></td>`
+          : `<td><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="Required password"></td>`;
+
+        const modelLabelCell = isReadonlyQueue
+          ? `<td><span class="proxy-readonly" title="${safeModelLabel || '—'}">${safeModelLabel || '—'}</span></td>`
+          : `<td><input type="text" id="acc_model_${i}" value="${safeModelLabel}" placeholder="Generic (No label)"></td>`;
 
         const customMessagesCell = isReadonlyQueue
           ? `<span class="badge" style="background:rgba(216,155,2,0.12); border:1px solid rgba(216,155,2,0.3); color:#f3c24d;">${messageCount} msgs</span>`
@@ -1317,14 +1494,13 @@
           ? `<span style="font-size:0.8rem; color: var(--text-muted);">Read-only</span>`
           : `<button class="btn btn-danger btn-sm" title="Delete Account" onclick="removeAccount(${i})"><i class="fas fa-trash"></i></button>`;
 
-        const disabledAttr = isReadonlyQueue ? 'disabled' : '';
         const rowStyle = isReadonlyQueue ? 'opacity:0.82;' : '';
 
         tbody.innerHTML += `
           <tr style="${rowStyle}">
-            <td><input type="text" id="acc_user_${i}" value="${safeUser}" ${disabledAttr}></td>
-            <td><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="${isReadonlyQueue ? 'Managed by another employee' : 'Required password'}" ${disabledAttr}></td>
-            <td><input type="text" id="acc_model_${i}" value="${safeModelLabel}" placeholder="Generic (No label)" ${disabledAttr}></td>
+            ${userCell}
+            ${passwordCell}
+            ${modelLabelCell}
             ${ownerCell}
             ${proxyCell}
             <td>
@@ -1333,9 +1509,7 @@
             <td>
               ${cookiesCell}
             </td>
-            <td style="display:flex; gap:0.5rem;">
-              ${actionCell}
-            </td>
+            <td><div class="accounts-actions">${actionCell}</div></td>
           </tr>
         `;
       });
@@ -1344,35 +1518,54 @@
     function addAccountRow() {
       // Sync current DOM values back to array first
       syncAccountsFromDom();
+
+      if (!globalIsMaster) {
+        activeAccountOwnerTab = normalizeOwnerKey(globalCurrentUser.username || '');
+      }
+
+      const defaultOwner = globalIsMaster && activeAccountOwnerTab !== 'all'
+        ? normalizeOwnerKey(activeAccountOwnerTab)
+        : (globalCurrentUser.username || 'master');
+
       globalAccounts.push({
         username: "",
         password: "",
         model_label: "",
         proxy: "",
         custom_messages: [],
-        owner_username: globalCurrentUser.username || 'master',
+        owner_username: defaultOwner,
         cookies_raw: '',
         cookies_touched: false,
         shared_readonly: false,
       });
+      buildAccountsOwnerTabs();
+      renderAccountsOwnerTabs();
       renderAccounts();
     }
     
     function removeAccount(idx) {
       syncAccountsFromDom();
-      if (!globalIsMaster && globalAccounts[idx] && globalAccounts[idx].shared_readonly) {
-        showError('Queued accounts from other employees are read-only');
+      const row = globalAccounts[idx] || null;
+      const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
+      const rowOwnerKey = normalizeOwnerKey(row ? row.owner_username : 'master');
+      if (!globalIsMaster && row && (row.shared_readonly || rowOwnerKey !== myOwnerKey)) {
+        showError('Other employee accounts are read-only');
         return;
       }
       globalAccounts.splice(idx, 1);
+      buildAccountsOwnerTabs();
+      renderAccountsOwnerTabs();
       renderAccounts();
     }
     
     function syncAccountsFromDom() {
       globalAccounts.forEach((acc, i) => {
-        if (!globalIsMaster && acc.shared_readonly) {
+        const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
+        const ownerKey = normalizeOwnerKey(acc.owner_username || 'master');
+        if (!globalIsMaster && (acc.shared_readonly || ownerKey !== myOwnerKey)) {
           return;
         }
+
         const u = document.getElementById(`acc_user_${i}`);
         const p = document.getElementById(`acc_pass_${i}`);
         const ml = document.getElementById(`acc_model_${i}`);
@@ -1393,7 +1586,11 @@
       // Remove empty rows, then enforce required password for each saved account.
       const editableAccounts = globalIsMaster
         ? globalAccounts
-        : globalAccounts.filter(a => !a.shared_readonly);
+        : globalAccounts.filter(a => {
+            const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
+            const ownerKey = normalizeOwnerKey(a.owner_username || 'master');
+            return !a.shared_readonly && ownerKey === myOwnerKey;
+          });
 
       const cleanAccs = editableAccounts
         .filter(a => a.username.trim() !== "")
@@ -1413,6 +1610,7 @@
       const missingPasswordUsers = cleanAccs
         .filter(a => !a.password)
         .map(a => a.username);
+
       if (missingPasswordUsers.length) {
         showError(`Password is required for: ${missingPasswordUsers.join(', ')}`);
         return;
@@ -1867,12 +2065,6 @@
         if (el.type === 'number') val = Number(val);
         else if (key === 'TELEGRAM_CHAT_IDS') {
           val = val.split(',').map(x => x.trim()).filter(x => x);
-        } else if (key === 'PROXY_LIST') {
-          val = String(val || '')
-            .split('\n')
-            .flatMap(line => line.split(','))
-            .map(x => x.trim())
-            .filter(x => x);
         }
         
         payload[key] = val;

@@ -169,51 +169,6 @@ def _build_account_pool_summary(accounts: list, models: list) -> str:
     return "\n".join(lines)
 
 
-def _normalize_proxy_list(raw_proxy_list) -> list:
-    """Normalize proxy settings into a de-duplicated list of non-empty strings."""
-    if isinstance(raw_proxy_list, str):
-        raw_items = [raw_proxy_list]
-    elif isinstance(raw_proxy_list, list):
-        raw_items = raw_proxy_list
-    else:
-        return []
-
-    clean = []
-    seen = set()
-    for raw_item in raw_items:
-        text = str(raw_item or "")
-        for line in text.splitlines():
-            for part in line.split(","):
-                proxy = part.strip()
-                if not proxy:
-                    continue
-                key = proxy.lower()
-                if key in seen:
-                    continue
-                seen.add(key)
-                clean.append(proxy)
-    return clean
-
-
-def _assign_session_proxies(accounts: list, proxy_pool: list) -> dict:
-    """Assign proxies per account for this session, reusing only when pool is smaller."""
-    if not accounts or not proxy_pool:
-        return {}
-
-    shuffled_pool = list(proxy_pool)
-    random.shuffle(shuffled_pool)
-
-    assignments = {}
-    pool_size = len(shuffled_pool)
-    for idx, account in enumerate(accounts):
-        username = str(account.get("username") or "").strip()
-        if not username:
-            continue
-        assignments[username] = shuffled_pool[idx % pool_size]
-
-    return assignments
-
-
 def _normalize_message_list(raw_messages) -> list:
     """Normalize a raw messages array into non-empty trimmed strings."""
     if not isinstance(raw_messages, list):
@@ -274,7 +229,6 @@ def run_bot(stop_event=None, account_owner=None):
         model_message_map = _normalize_model_message_map(
             database.get_setting("MODEL_MESSAGE_MAP") or {}
         )
-        proxy_pool = _normalize_proxy_list(database.get_setting("PROXY_LIST", []))
 
         # If explicit model list is empty, derive targets from model-specific sets.
         if not models and model_message_map:
@@ -298,17 +252,10 @@ def run_bot(stop_event=None, account_owner=None):
 
     logger.info(
         f"Loaded {len(accounts)} accounts, {len(models)} models, "
-        f"{len(messages)} general messages, {len(model_message_map)} model-specific sets, "
-        f"{len(proxy_pool)} proxies"
+        f"{len(messages)} general messages, {len(model_message_map)} model-specific sets"
     )
     if account_owner:
         logger.info(f"Account scope: employee @{account_owner}")
-
-    proxy_assignments = _assign_session_proxies(accounts, proxy_pool)
-    if proxy_pool and len(proxy_pool) < len(accounts):
-        logger.warning(
-            "[ProxyPool] Pool has fewer proxies than accounts; some proxies will be reused this session"
-        )
 
     # Load DM log and build 24-hour exclusion set
     from datetime import datetime, timedelta
@@ -363,18 +310,11 @@ def run_bot(stop_event=None, account_owner=None):
 
             # Create browser
             driver = None
-            pool_proxy = str(proxy_assignments.get(username) or "").strip()
-            manual_proxy = str(account.get("proxy") or "").strip()
-            account_proxy = pool_proxy or manual_proxy or None
+            account_proxy = str(account.get("proxy") or "").strip() or None
             try:
                 if account_proxy:
                     from core.browser import _mask_proxy_for_log
-                    proxy_source = "pool" if pool_proxy else "account"
-                    log_and_telegram(
-                        f"[{username}] 🌐 Using {proxy_source} proxy: {_mask_proxy_for_log(account_proxy)}"
-                    )
-                else:
-                    log_and_telegram(f"[{username}] 🌐 Using direct connection (no proxy)")
+                    log_and_telegram(f"[{username}] 🌐 Using proxy: {_mask_proxy_for_log(account_proxy)}")
                 driver = create_driver(proxy=account_proxy)
                 _register_driver(driver)
             except Exception as e:
