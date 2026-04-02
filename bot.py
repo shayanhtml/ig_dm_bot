@@ -393,6 +393,7 @@ def run_bot(stop_event=None, account_owner=None):
     telegram_bot.start_polling()
     telegram_bot.send_startup()
     telegram_bot.send_account_pool_summary(_build_account_pool_summary(accounts, models))
+    telegram_bot.send_account_profile_summary(accounts)
     _maybe_send_24h_dm_summary(hours=DM_SUMMARY_WINDOW_HOURS)
     telegram_bot.stats["status"] = "Running"
 

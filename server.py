@@ -579,6 +579,7 @@ def api_get_config():
                     "owner_username": str(acc.get("owner_username", "")).strip() or "master",
                     "model_label": str(acc.get("model_label", "")).strip(),
                     "proxy": _mask_proxy_for_view(acc.get("proxy", "")),
+                "profile_note": str(acc.get("profile_note", "")).strip(),
                 }
                 for acc in queue_rows
                 if str(acc.get("username", "")).strip()
@@ -592,6 +593,7 @@ def api_get_config():
                     "owner_username": str(acc.get("owner_username", "")).strip() or "master",
                     "model_label": str(acc.get("model_label", "")).strip(),
                     "proxy": _mask_proxy_for_view(acc.get("proxy", "")),
+                "profile_note": str(acc.get("profile_note", "")).strip(),
                 }
                 for acc in queue_rows
                 if str(acc.get("username", "")).strip()
@@ -618,6 +620,7 @@ def api_accounts_queue():
                 "owner_username": str(acc.get("owner_username", "")).strip() or "master",
             "model_label": str(acc.get("model_label", "")).strip(),
             "proxy": _mask_proxy_for_view(acc.get("proxy", "")),
+            "profile_note": str(acc.get("profile_note", "")).strip(),
             }
             for acc in queue_rows
             if str(acc.get("username", "")).strip()
@@ -718,6 +721,13 @@ def api_save_config(target):
                         "error": f"Password is required for account '{username}'",
                     }), 400
 
+                profile_note = str(raw_acc.get("profile_note", "") or "").strip()
+                if not profile_note:
+                  return jsonify({
+                    "success": False,
+                    "error": f"Bio + URL is required for account '{username}'",
+                  }), 400
+
                 proxy_value, too_many_proxies, _ = _normalize_proxy_value(raw_acc.get("proxy", ""))
                 if too_many_proxies:
                   return jsonify({
@@ -730,7 +740,8 @@ def api_save_config(target):
                     "password": password,
                     "model_label": str(raw_acc.get("model_label", "")).strip(),
                     "custom_messages": _normalize_text_list(raw_acc.get("custom_messages", [])),
-                  "proxy": proxy_value,
+                    "proxy": proxy_value,
+                    "profile_note": profile_note,
                 }
                 if is_master:
                     account_entry["owner_username"] = str(raw_acc.get("owner_username", "")).strip().lower() or "master"

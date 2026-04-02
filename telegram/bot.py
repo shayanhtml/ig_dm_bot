@@ -105,6 +105,7 @@ class TelegramBot:
             f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}\n"
             "Use `/status` for current state\n"
             "Use `/summary` for DM summary\n"
+            "Use `/accounts` for IG bios + urls\n"
             "Use `/stop` to request stop"
         )
 
@@ -117,6 +118,43 @@ class TelegramBot:
         self.send(
             "📊 *IG ACCOUNT POOL*\n\n"
             f"{clean_summary}"
+        )
+
+    @staticmethod
+    def _compact_profile_note(raw_text: str, max_len: int = 260) -> str:
+        text = str(raw_text or "").replace("\r", "\n")
+        chunks = [part.strip() for part in text.split("\n") if part.strip()]
+        merged = " | ".join(chunks)
+        merged = merged.replace("`", "'")
+        if len(merged) > max_len:
+            return merged[: max_len - 3].rstrip() + "..."
+        return merged
+
+    def send_account_profile_summary(self, accounts: list):
+        """Send IG account bio/url preset text for all configured accounts."""
+        rows = accounts if isinstance(accounts, list) else []
+        if not rows:
+            self.send("🧷 *IG ACCOUNT BIOS + URLS*\n\n_No accounts configured yet._")
+            return
+
+        lines = []
+        for account in sorted(rows, key=lambda item: str(item.get("username") or "").lower()):
+            username = str(account.get("username") or "").strip().lstrip("@")
+            if not username:
+                continue
+
+            profile_note = self._compact_profile_note(account.get("profile_note", ""))
+            if profile_note:
+                lines.append(f"• `@{username}`\n  `{profile_note}`")
+            else:
+                lines.append(f"• `@{username}`\n  `_No bio/url preset_`")
+
+        if not lines:
+            lines = ["_No accounts configured yet._"]
+
+        self.send(
+            "🧷 *IG ACCOUNT BIOS + URLS*\n\n"
+            + "\n".join(lines[:50])
         )
 
     def send_challenge_alert(self, account: str, challenge_type: str, url: str = ""):
@@ -384,6 +422,15 @@ class TelegramBot:
             except Exception as e:
                 logger.error(f"[Telegram] Failed to build summary on /summary command: {e}")
                 self.send("❌ Failed to generate summary right now.")
+
+        # /accounts
+        elif text_lower == "/accounts":
+            try:
+                accounts = database.get_accounts(include_all=True)
+                self.send_account_profile_summary(accounts)
+            except Exception as e:
+                logger.error(f"[Telegram] Failed to load accounts on /accounts command: {e}")
+                self.send("❌ Failed to fetch account bios/urls right now.")
 
         # /stop
         elif text_lower == "/stop":

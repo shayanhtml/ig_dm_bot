@@ -389,6 +389,7 @@
                 <th style="width: 190px;">Model Label (Optional)</th>
                 <th id="accountsOwnerHeader" style="width: 140px; display:none;">Owner</th>
                 <th style="width: 320px;">Proxy (Optional)</th>
+                <th style="width: 170px;">Bio + URL (Required)</th>
                 <th style="width: 170px;">Custom Messages</th>
                 <th style="width: 140px;">Cookies</th>
                 <th style="width: 100px;">Action</th>
@@ -588,6 +589,19 @@
     </div>
   </div>
 
+  <!-- Account Bio + URL Preset Modal -->
+  <div class="modal-overlay" id="accountProfileModalOverlay">
+    <div class="modal">
+      <h2 id="accountProfileModalTitle">Account Bio + URL Preset</h2>
+      <p>Type the bio and URL details for this IG account. This field is required and will be shared to Telegram for easier visibility.</p>
+      <textarea id="accountProfileTextarea" rows="10" placeholder="Bio: Premium fashion and lifestyle\nURL: https://instagram.com/your_account" style="font-family: inherit; margin-bottom: 1rem;"></textarea>
+      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+        <button class="btn" style="background:var(--surface-border)" onclick="closeAccountProfileModal()">Cancel</button>
+        <button class="btn btn-success" onclick="saveAccountProfileModal()"><i class="fas fa-save"></i> Save Preset</button>
+      </div>
+    </div>
+  </div>
+
   <!-- User Edit Modal -->
   <div class="modal-overlay" id="userEditModalOverlay">
     <div class="modal">
@@ -690,6 +704,8 @@
     let activeCookieRowIndex = -1;
     let activeAccountMessageRowIndex = -1;
     let activeAccountMessageUser = '';
+    let activeAccountProfileRowIndex = -1;
+    let activeAccountProfileUser = '';
     let activeResetPasswordUser = '';
     let confirmModalResolver = null;
     let pendingBotCommand = '';
@@ -1343,6 +1359,7 @@
           password: '',
           model_label: item.model_label || '',
           proxy: String(item.proxy || '').trim(),
+          profile_note: String(item.profile_note || '').trim(),
           custom_messages: Array.isArray(item.custom_messages) ? item.custom_messages : [],
           owner_username: item.owner_username || '',
           cookies_raw: '',
@@ -1373,6 +1390,7 @@
           ...acc,
           model_label: String(acc.model_label || '').trim(),
           proxy: String(acc.proxy || '').trim(),
+          profile_note: String(acc.profile_note || '').trim(),
           custom_messages: Array.isArray(acc.custom_messages) ? acc.custom_messages : [],
           cookies_raw: acc.cookies_raw || '',
           cookies_touched: false,
@@ -1486,7 +1504,7 @@
       });
 
       if (!visibleIndexes.length) {
-        const cols = globalIsMaster ? 8 : 7;
+        const cols = globalIsMaster ? 9 : 8;
         const message = (globalIsMaster && activeAccountOwnerTab !== 'all')
           ? 'No accounts for this employee yet.'
           : 'No accounts added yet.';
@@ -1505,6 +1523,9 @@
         const safeProxy = escapeHtml(isReadonlyQueue ? '' : rawProxy);
         const safeReadonlyProxy = escapeHtml(maskProxyListForDisplay(rawProxy));
         const hasProxy = !isReadonlyQueue && rawProxy;
+        const rawProfileNote = String(acc.profile_note || '').trim();
+        const safeProfilePreview = escapeHtml(rawProfileNote || 'No preset');
+        const profilePreviewLabel = rawProfileNote ? `${Math.min(rawProfileNote.length, 120)} chars` : 'No preset';
         const messageCount = Array.isArray(acc.custom_messages)
           ? acc.custom_messages.filter(x => String(x || '').trim()).length
           : 0;
@@ -1529,6 +1550,10 @@
           ? `<td><span class="proxy-readonly" title="${safeModelLabel || '—'}">${safeModelLabel || '—'}</span></td>`
           : `<td><input type="text" id="acc_model_${i}" value="${safeModelLabel}" placeholder="Generic (No label)"></td>`;
 
+        const profileCell = isReadonlyQueue
+          ? `<span class="proxy-readonly" title="${safeProfilePreview}">${safeProfilePreview || '—'}</span>`
+          : `<button class="btn btn-primary btn-sm" title="Edit Bio + URL Preset" onclick="openAccountProfileModalFromRow(${i})"><i class="fas fa-id-card"></i> Bio+URL (${profilePreviewLabel})</button>`;
+
         const customMessagesCell = isReadonlyQueue
           ? `<span class="badge" style="background:rgba(216,155,2,0.12); border:1px solid rgba(216,155,2,0.3); color:#f3c24d;">${messageCount} msgs</span>`
           : `<button class="btn btn-primary btn-sm" title="Edit Custom Messages" onclick="openAccountMessageModalFromRow(${i})"><i class="fas fa-comment-dots"></i> Messages (${messageCount})</button>`;
@@ -1550,6 +1575,9 @@
             ${modelLabelCell}
             ${ownerCell}
             ${proxyCell}
+            <td>
+              ${profileCell}
+            </td>
             <td>
               ${customMessagesCell}
             </td>
@@ -1579,6 +1607,7 @@
         password: "",
         model_label: "",
         proxy: "",
+        profile_note: "",
         custom_messages: [],
         owner_username: defaultOwner,
         cookies_raw: '',
@@ -1648,6 +1677,7 @@
             password: String(a.password || '').trim(),
             model_label: String(a.model_label || '').trim(),
             proxy: proxyNormalized.proxies.join(', '),
+            profile_note: String(a.profile_note || '').trim(),
             proxy_overflow: proxyNormalized.overflow,
             custom_messages: Array.isArray(a.custom_messages)
               ? a.custom_messages.map(x => String(x || '').trim()).filter(x => x)
@@ -1676,11 +1706,21 @@
         return;
       }
 
+      const missingProfileUsers = cleanAccs
+        .filter(a => !String(a.profile_note || '').trim())
+        .map(a => a.username);
+
+      if (missingProfileUsers.length) {
+        showError(`Bio + URL preset is required for: ${missingProfileUsers.join(', ')}`);
+        return;
+      }
+
       const accountsPayload = cleanAccs.map(a => ({
         username: a.username,
         password: a.password,
         model_label: a.model_label,
         proxy: a.proxy,
+        profile_note: a.profile_note,
         custom_messages: a.custom_messages,
         owner_username: a.owner_username,
       }));
@@ -2311,6 +2351,52 @@
       closeAccountMessageModal();
       renderAccounts();
       showToast(`Custom messages staged for ${username}. Click Save Accounts to apply.`);
+    }
+
+    // ── Account Bio + URL Preset UI Handlers ──
+    function openAccountProfileModalFromRow(idx) {
+      syncAccountsFromDom();
+      const account = globalAccounts[idx];
+      if (!account) return;
+
+      const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
+      const ownerKey = normalizeOwnerKey(account.owner_username || 'master');
+      if (!globalIsMaster && (account.shared_readonly || ownerKey !== myOwnerKey)) {
+        showError('Queued accounts from other employees are read-only');
+        return;
+      }
+
+      const username = String(account.username || '').trim();
+      const displayName = username || `Account ${idx + 1}`;
+
+      activeAccountProfileRowIndex = idx;
+      activeAccountProfileUser = displayName;
+
+      document.getElementById('accountProfileModalTitle').innerText = `Edit Bio + URL Preset: ${displayName}`;
+      document.getElementById('accountProfileTextarea').value = String(account.profile_note || '');
+      document.getElementById('accountProfileModalOverlay').classList.add('show');
+    }
+
+    function closeAccountProfileModal() {
+      document.getElementById('accountProfileModalOverlay').classList.remove('show');
+      activeAccountProfileRowIndex = -1;
+      activeAccountProfileUser = '';
+    }
+
+    function saveAccountProfileModal() {
+      if (activeAccountProfileRowIndex < 0 || !globalAccounts[activeAccountProfileRowIndex]) {
+        showError('No account row selected for bio + url preset');
+        return;
+      }
+
+      const raw = document.getElementById('accountProfileTextarea').value;
+      const row = globalAccounts[activeAccountProfileRowIndex];
+      row.profile_note = String(raw || '').trim();
+
+      const username = activeAccountProfileUser;
+      closeAccountProfileModal();
+      renderAccounts();
+      showToast(`Bio + URL preset staged for ${username}. Click Save Accounts to apply.`);
     }
 
     // ── Cookie UI Handlers ──

@@ -109,6 +109,13 @@ def _ensure_account_proxy_column(conn):
     conn.execute("UPDATE accounts SET proxy = '' WHERE proxy IS NULL")
 
 
+def _ensure_account_profile_note_column(conn):
+    if "profile_note" in _table_columns(conn, "accounts"):
+        return
+    conn.execute("ALTER TABLE accounts ADD COLUMN profile_note TEXT NOT NULL DEFAULT ''")
+    conn.execute("UPDATE accounts SET profile_note = '' WHERE profile_note IS NULL")
+
+
 def _normalize_account_model_label(value) -> str:
     clean = str(value or "").strip().lstrip("@")
     key = clean.lower()
@@ -179,7 +186,8 @@ def init_db():
                 owner_username TEXT NOT NULL DEFAULT 'master',
                 model_label TEXT NOT NULL DEFAULT '',
                 custom_messages_json TEXT NOT NULL DEFAULT '[]',
-                proxy TEXT NOT NULL DEFAULT ''
+                proxy TEXT NOT NULL DEFAULT '',
+                profile_note TEXT NOT NULL DEFAULT ''
             )
         """)
         
@@ -282,6 +290,7 @@ def init_db():
         _ensure_account_model_label_column(conn)
         _ensure_account_custom_messages_column(conn)
         _ensure_account_proxy_column(conn)
+        _ensure_account_profile_note_column(conn)
         _ensure_master_user(conn)
 
         conn.commit()
@@ -494,7 +503,7 @@ def get_accounts(owner_username: str = None, include_all: bool = False):
     try:
         if include_all:
             rows = conn.execute(
-                "SELECT username, password, owner_username, model_label, custom_messages_json, proxy "
+                "SELECT username, password, owner_username, model_label, custom_messages_json, proxy, profile_note "
                 "FROM accounts ORDER BY owner_username, username"
             ).fetchall()
         else:
@@ -502,7 +511,7 @@ def get_accounts(owner_username: str = None, include_all: bool = False):
             if not clean_owner:
                 return []
             rows = conn.execute(
-                "SELECT username, password, owner_username, model_label, custom_messages_json, proxy "
+                "SELECT username, password, owner_username, model_label, custom_messages_json, proxy, profile_note "
                 "FROM accounts WHERE owner_username = ? ORDER BY username",
                 (clean_owner,),
             ).fetchall()
@@ -522,6 +531,7 @@ def get_accounts(owner_username: str = None, include_all: bool = False):
                     "model_label": str(r["model_label"] or "").strip(),
                     "custom_messages": _normalize_account_custom_messages(raw_custom_messages),
                     "proxy": str(r["proxy"] or "").strip(),
+                    "profile_note": str(r["profile_note"] or "").strip(),
                 }
             )
 
@@ -549,10 +559,13 @@ def save_accounts(accounts_list, owner_username: str = None, include_all: bool =
                     _normalize_account_custom_messages(acc.get("custom_messages", []))
                 )
                 proxy = str(acc.get("proxy", "") or "").strip()
+                profile_note = str(acc.get("profile_note", "") or "").strip()
+                if not profile_note:
+                    raise ValueError(f"Bio + URL is required for account '{username}'")
                 conn.execute(
-                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json, proxy) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (username, password, owner, model_label, custom_messages_json, proxy),
+                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json, proxy, profile_note) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (username, password, owner, model_label, custom_messages_json, proxy, profile_note),
                 )
         else:
             clean_owner = str(owner_username or "").strip().lower()
@@ -570,10 +583,13 @@ def save_accounts(accounts_list, owner_username: str = None, include_all: bool =
                     _normalize_account_custom_messages(acc.get("custom_messages", []))
                 )
                 proxy = str(acc.get("proxy", "") or "").strip()
+                profile_note = str(acc.get("profile_note", "") or "").strip()
+                if not profile_note:
+                    raise ValueError(f"Bio + URL is required for account '{username}'")
                 conn.execute(
-                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json, proxy) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (username, password, clean_owner, model_label, custom_messages_json, proxy),
+                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json, proxy, profile_note) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (username, password, clean_owner, model_label, custom_messages_json, proxy, profile_note),
                 )
 
         conn.commit()
