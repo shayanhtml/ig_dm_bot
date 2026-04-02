@@ -7,6 +7,7 @@ import os
 import sys
 import time
 import random
+import re
 import logging
 import threading
 from datetime import datetime, timedelta
@@ -14,7 +15,7 @@ from datetime import datetime, timedelta
 from config.settings import LOGS_DIR
 from config import database
 from config.database import get_required_setting
-from core.browser import create_driver, close_driver
+from core.browser import create_driver, close_driver, _mask_proxy_for_log
 from core.cookie_manager import save_cookies, refresh_cookies
 from core.auth import (
     login_with_cookies, login_with_credentials,
@@ -30,6 +31,7 @@ logger = logging.getLogger("model_dm_bot")
 _active_drivers = set()
 _active_drivers_lock = threading.Lock()
 DM_SUMMARY_WINDOW_HOURS = 24
+MAX_ACCOUNT_PROXIES = 5
 
 
 def _setting_int(key: str) -> int:
@@ -167,9 +169,10 @@ def _maybe_send_24h_dm_summary(hours: int = DM_SUMMARY_WINDOW_HOURS, force: bool
         database.save_settings({"DM_24H_REPORT_LAST_SENT_AT": datetime.now().isoformat(timespec="seconds")})
 
         logger.info(
-            "24h DM summary sent to Telegram (window=%sh, total_sent=%s)",
+            "24h DM summary sent to Telegram (window=%sh, total_sent=%s, lifetime_total_sent=%s)",
             safe_hours,
             summary.get("total_sent", 0),
+            summary.get("lifetime_total_sent", 0),
         )
         return True
     except Exception as e:
@@ -241,6 +244,31 @@ def _normalize_message_list(raw_messages) -> list:
         if trimmed:
             clean_messages.append(trimmed)
     return clean_messages
+
+
+def _normalize_account_proxy_candidates(raw_proxy, max_items: int = MAX_ACCOUNT_PROXIES) -> list:
+    """Parse account proxy input into an ordered unique list (up to max_items)."""
+    raw_text = str(raw_proxy or "")
+    if not raw_text.strip():
+        return []
+
+    candidates = []
+    seen = set()
+    for part in re.split(r"[\r\n,;]+", raw_text):
+        proxy = str(part or "").strip()
+        if not proxy:
+            continue
+
+        key = proxy.lower()
+        if key in seen:
+            continue
+
+        seen.add(key)
+        candidates.append(proxy)
+        if len(candidates) >= max_items:
+            break
+
+    return candidates
 
 
 def _normalize_model_message_map(raw_map) -> dict:
@@ -369,28 +397,75 @@ def run_bot(stop_event=None, account_owner=None):
             telegram_bot.stats["current_account"] = username
             telegram_bot.stats["accounts_used"] += 1
 
-            # Create browser
+            # Create browser + login with proxy failover (up to MAX_ACCOUNT_PROXIES)
             driver = None
-            account_proxy = str(account.get("proxy") or "").strip() or None
-            try:
-                if account_proxy:
-                    from core.browser import _mask_proxy_for_log
-                    log_and_telegram(f"[{username}] 🌐 Using proxy: {_mask_proxy_for_log(account_proxy)}")
-                driver = create_driver(proxy=account_proxy)
-                _register_driver(driver)
-            except Exception as e:
-                log_and_telegram(f"❌ Failed to create browser for @{username}: {e}")
-                log_and_telegram("⚠️ Check your internet connection — ChromeDriver needs to download.")
+            logged_in = False
+            proxy_candidates = _normalize_account_proxy_candidates(account.get("proxy", ""))
+            connection_candidates = list(proxy_candidates) if proxy_candidates else [None]
+
+            if proxy_candidates:
+                proxy_preview = ", ".join(_mask_proxy_for_log(proxy) for proxy in proxy_candidates)
+                log_and_telegram(
+                    f"[{username}] 🌐 Proxy pool loaded ({len(proxy_candidates)}/{MAX_ACCOUNT_PROXIES}): {proxy_preview}"
+                )
+            else:
+                log_and_telegram(f"[{username}] 🌐 No proxy configured, using direct connection")
+
+            for attempt_index, candidate_proxy in enumerate(connection_candidates, start=1):
+                if stop_event and stop_event.is_set():
+                    break
+
+                try:
+                    if candidate_proxy:
+                        log_and_telegram(
+                            f"[{username}] 🌐 Attempt {attempt_index}/{len(connection_candidates)} with proxy: "
+                            f"{_mask_proxy_for_log(candidate_proxy)}"
+                        )
+                    else:
+                        log_and_telegram(
+                            f"[{username}] 🌐 Attempt {attempt_index}/{len(connection_candidates)} with direct connection"
+                        )
+
+                    driver = create_driver(proxy=candidate_proxy)
+                    _register_driver(driver)
+                except Exception as e:
+                    log_and_telegram(
+                        f"❌ Failed to create browser for @{username} on attempt "
+                        f"{attempt_index}/{len(connection_candidates)}: {e}"
+                    )
+                    if attempt_index == len(connection_candidates):
+                        log_and_telegram(
+                            "⚠️ Check your internet connection — ChromeDriver needs to download."
+                        )
+                    continue
+
+                try:
+                    logged_in = _perform_login(driver, account)
+                except Exception as e:
+                    logged_in = False
+                    log_and_telegram(
+                        f"❌ Login error for @{username} on attempt "
+                        f"{attempt_index}/{len(connection_candidates)}: {e}"
+                    )
+
+                if logged_in:
+                    break
+
+                log_and_telegram(
+                    f"⚠️ Login failed for @{username} on attempt "
+                    f"{attempt_index}/{len(connection_candidates)}"
+                )
+                close_driver(driver)
+                _unregister_driver(driver)
+                driver = None
+
+            if not logged_in or not driver:
+                log_and_telegram(
+                    f"❌ Failed to login @{username} after trying {len(connection_candidates)} connection option(s), skipping"
+                )
                 continue
 
             try:
-                # Login
-                logged_in = _perform_login(driver, account)
-                if not logged_in:
-                    log_and_telegram(f"❌ Failed to login @{username}, skipping")
-                    close_driver(driver)
-                    continue
-
                 # Process each model allowed for this account
                 for model_username in account_models:
                     _maybe_send_24h_dm_summary(hours=DM_SUMMARY_WINDOW_HOURS)

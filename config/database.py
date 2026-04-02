@@ -769,6 +769,22 @@ def get_dm_sent_summary_last_hours(hours: int = 24, include_all_accounts: bool =
         ).fetchone()
         total_sent = int(total_row["c"] if total_row and total_row["c"] is not None else 0)
 
+        lifetime_row = conn.execute(
+            "SELECT COUNT(*) AS c FROM dm_event_log WHERE status = 'sent'"
+        ).fetchone()
+        lifetime_total_sent = int(
+            lifetime_row["c"] if lifetime_row and lifetime_row["c"] is not None else 0
+        )
+
+        # Backward-compatible fallback for historical installs that only had dm_log.
+        if lifetime_total_sent <= 0:
+            legacy_row = conn.execute(
+                "SELECT COUNT(*) AS c FROM dm_log WHERE timestamp IS NOT NULL AND TRIM(timestamp) != ''"
+            ).fetchone()
+            lifetime_total_sent = int(
+                legacy_row["c"] if legacy_row and legacy_row["c"] is not None else 0
+            )
+
         rows = conn.execute(
             """
             SELECT sender_account, COUNT(*) AS sent_count
@@ -810,6 +826,7 @@ def get_dm_sent_summary_last_hours(hours: int = 24, include_all_accounts: bool =
             "cutoff": cutoff_iso,
             "generated_at": datetime.now().isoformat(timespec="seconds"),
             "total_sent": total_sent,
+            "lifetime_total_sent": lifetime_total_sent,
             "by_account": by_account,
         }
     finally:

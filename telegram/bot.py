@@ -104,6 +104,7 @@ class TelegramBot:
             "🚀 *MODEL DM BOT STARTED*\n\n"
             f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}\n"
             "Use `/status` for current state\n"
+            "Use `/summary` for DM summary\n"
             "Use `/stop` to request stop"
         )
 
@@ -175,6 +176,11 @@ class TelegramBot:
         except Exception:
             total_sent = 0
 
+        try:
+            lifetime_total_sent = int(payload.get("lifetime_total_sent", 0) or 0)
+        except Exception:
+            lifetime_total_sent = 0
+
         raw_by_account = payload.get("by_account", [])
         by_account = raw_by_account if isinstance(raw_by_account, list) else []
 
@@ -200,7 +206,8 @@ class TelegramBot:
 
         self.send(
             f"🧾 *DM SUMMARY (LAST {hours}H)*\n\n"
-            f"✉️ *Total Sent:* `{total_sent}`\n\n"
+            f"✉️ *Total Sent (Last {hours}H):* `{total_sent}`\n"
+            f"🏁 *Lifetime Total Sent:* `{lifetime_total_sent}`\n\n"
             f"*Per Account:*\n"
             + "\n".join(lines)
         )
@@ -330,6 +337,34 @@ class TelegramBot:
         # /status
         elif text_lower == "/status":
             self.send(self._get_status_text())
+
+        # /summary or /summary 48
+        elif text_lower.startswith("/summary"):
+            parts = text.split()
+            hours = 24
+
+            if len(parts) > 1:
+                try:
+                    hours = int(parts[1])
+                except Exception:
+                    self.send("❌ Invalid summary range. Use `/summary` or `/summary 48`.")
+                    return
+
+            try:
+                summary = database.get_dm_sent_summary_last_hours(
+                    hours=hours,
+                    include_all_accounts=True,
+                )
+                self.send_24h_dm_summary(summary)
+                logger.info(
+                    "[Telegram] Sent manual summary request (hours=%s, total_sent=%s, lifetime_total_sent=%s)",
+                    summary.get("hours", hours),
+                    summary.get("total_sent", 0),
+                    summary.get("lifetime_total_sent", 0),
+                )
+            except Exception as e:
+                logger.error(f"[Telegram] Failed to build summary on /summary command: {e}")
+                self.send("❌ Failed to generate summary right now.")
 
         # /stop
         elif text_lower == "/stop":

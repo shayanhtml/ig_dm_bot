@@ -9,6 +9,7 @@ import time
 import random
 import threading
 import logging
+import re
 from functools import wraps
 from datetime import datetime, timedelta
 
@@ -21,6 +22,7 @@ from config.database import get_setting
 
 # ── Config ──
 BOT_LOOP_ENABLED = True
+MAX_PROXIES_PER_ACCOUNT = 5
 
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
@@ -142,8 +144,35 @@ def _normalize_text_list(raw_items):
   return clean
 
 
-def _mask_proxy_for_view(proxy_value):
-  """Mask proxy credentials for read-only queue display."""
+def _split_proxy_entries(raw_proxy):
+  text = str(raw_proxy or "")
+  if not text.strip():
+    return []
+
+  clean = []
+  seen = set()
+  for part in re.split(r"[\r\n,;]+", text):
+    proxy = str(part or "").strip()
+    if not proxy:
+      continue
+
+    key = proxy.lower()
+    if key in seen:
+      continue
+    seen.add(key)
+    clean.append(proxy)
+
+  return clean
+
+
+def _normalize_proxy_value(raw_proxy, max_items: int = MAX_PROXIES_PER_ACCOUNT):
+  proxy_entries = _split_proxy_entries(raw_proxy)
+  too_many = len(proxy_entries) > max_items
+  limited = proxy_entries[:max_items]
+  return ", ".join(limited), too_many, len(proxy_entries)
+
+
+def _mask_single_proxy_for_view(proxy_value: str):
   clean = str(proxy_value or "").strip()
   if not clean:
     return ""
@@ -166,6 +195,19 @@ def _mask_proxy_for_view(proxy_value):
     safe_creds = "***"
 
   return f"{prefix}{safe_creds}@{host}"
+
+
+def _mask_proxy_for_view(proxy_value):
+  """Mask proxy credentials for read-only queue display."""
+  proxy_entries = _split_proxy_entries(proxy_value)
+  if not proxy_entries:
+    return ""
+
+  masked = [_mask_single_proxy_for_view(proxy) for proxy in proxy_entries[:MAX_PROXIES_PER_ACCOUNT]]
+  hidden_count = max(0, len(proxy_entries) - MAX_PROXIES_PER_ACCOUNT)
+  if hidden_count:
+    masked.append(f"+{hidden_count} more")
+  return ", ".join(masked)
 
 
 # ── Dashboard HTML ──
@@ -593,7 +635,13 @@ def api_update_account_proxy():
       if not database.user_can_access_account(username, user_ctx["username"], user_ctx["role"]):
         return jsonify({"success": False, "error": f"Forbidden for account '{username}'"}), 403
 
-      proxy_value = str(item.get("proxy", "") or "").strip()
+      proxy_value, too_many_proxies, _ = _normalize_proxy_value(item.get("proxy", ""))
+      if too_many_proxies:
+        return jsonify({
+          "success": False,
+          "error": f"Account '{username}' supports maximum {MAX_PROXIES_PER_ACCOUNT} proxies",
+        }), 400
+
       updated = database.update_account_proxy(username, proxy_value)
       if updated:
         changed_usernames.append(username)
@@ -654,12 +702,19 @@ def api_save_config(target):
                         "error": f"Password is required for account '{username}'",
                     }), 400
 
+                proxy_value, too_many_proxies, _ = _normalize_proxy_value(raw_acc.get("proxy", ""))
+                if too_many_proxies:
+                  return jsonify({
+                    "success": False,
+                    "error": f"Account '{username}' supports maximum {MAX_PROXIES_PER_ACCOUNT} proxies",
+                  }), 400
+
                 account_entry = {
                     "username": username,
                     "password": password,
                     "model_label": str(raw_acc.get("model_label", "")).strip(),
                     "custom_messages": _normalize_text_list(raw_acc.get("custom_messages", [])),
-                    "proxy": str(raw_acc.get("proxy", "") or "").strip(),
+                  "proxy": proxy_value,
                 }
                 if is_master:
                     account_entry["owner_username"] = str(raw_acc.get("owner_username", "")).strip().lower() or "master"

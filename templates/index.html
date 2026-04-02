@@ -123,9 +123,15 @@
     #accountsTable td { vertical-align: middle; }
     #accountsTable td:last-child { white-space: nowrap; }
     .accounts-actions { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 34px; }
+    .proxy-input {
+      min-height: 78px;
+      line-height: 1.35;
+      resize: vertical;
+      font-size: 0.82rem;
+    }
     .proxy-readonly {
       display: inline-block;
-      max-width: 220px;
+      max-width: 340px;
       font-size: 0.78rem;
       color: var(--text-muted);
       white-space: nowrap;
@@ -370,7 +376,7 @@
       <div class="card">
         <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem;">
           Optional model label: this is your marketing model/campaign label (for example, Alice). It does not limit target usernames. If set, the account uses that label's message set; account custom messages can override it.
-          <br><span style="color:var(--primary);">🌐 Proxy</span> — optional, per-account. Formats: <code style="font-size:0.78rem; background:#1a1a1a; padding:1px 4px; border-radius:3px;">host:port</code>, <code style="font-size:0.78rem; background:#1a1a1a; padding:1px 4px; border-radius:3px;">user:pass@host:port</code>, <code style="font-size:0.78rem; background:#1a1a1a; padding:1px 4px; border-radius:3px;">socks5://host:port</code>.
+          <br><span style="color:var(--primary);">🌐 Proxy</span> — optional, per-account. Add up to 5 proxies separated by comma (failover order left to right). Formats: <code style="font-size:0.78rem; background:#1a1a1a; padding:1px 4px; border-radius:3px;">host:port</code>, <code style="font-size:0.78rem; background:#1a1a1a; padding:1px 4px; border-radius:3px;">user:pass@host:port</code>, <code style="font-size:0.78rem; background:#1a1a1a; padding:1px 4px; border-radius:3px;">socks5://host:port</code>.
         </p>
         <div class="table-wrap">
           <table id="accountsTable">
@@ -380,7 +386,7 @@
                 <th>Password (Required)</th>
                 <th style="width: 190px;">Model Label (Optional)</th>
                 <th id="accountsOwnerHeader" style="width: 140px; display:none;">Owner</th>
-                <th style="width: 200px;">Proxy (Optional)</th>
+                <th style="width: 320px;">Proxy (Optional)</th>
                 <th style="width: 170px;">Custom Messages</th>
                 <th style="width: 140px;">Cookies</th>
                 <th style="width: 100px;">Action</th>
@@ -660,6 +666,8 @@
   </div>
 
   <script>
+    const MAX_PROXIES_PER_ACCOUNT = 5;
+
     let globalAccounts = [];
     let globalModels = [];
     let globalMessages = [];
@@ -855,6 +863,41 @@
       const colonIndex = creds.indexOf(':');
       const safeCreds = colonIndex >= 0 ? `${creds.slice(0, colonIndex)}:***` : '***';
       return `${prefix}${safeCreds}@${host}`;
+    }
+
+    function splitProxyEntries(rawValue) {
+      return String(rawValue || '')
+        .split(/[\r\n,;]+/)
+        .map(x => String(x || '').trim())
+        .filter(x => x);
+    }
+
+    function normalizeProxyInputForSave(rawValue, maxCount = MAX_PROXIES_PER_ACCOUNT) {
+      const unique = [];
+      const seen = new Set();
+
+      splitProxyEntries(rawValue).forEach(proxy => {
+        const key = proxy.toLowerCase();
+        if (seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        unique.push(proxy);
+      });
+
+      return {
+        proxies: unique.slice(0, maxCount),
+        overflow: Math.max(0, unique.length - maxCount),
+        totalUnique: unique.length,
+      };
+    }
+
+    function maskProxyListForDisplay(rawValue) {
+      const normalized = normalizeProxyInputForSave(rawValue, MAX_PROXIES_PER_ACCOUNT);
+      if (!normalized.proxies.length) {
+        return '';
+      }
+      return normalized.proxies.map(maskProxyForDisplay).join(', ');
     }
 
     function normalizeModelKey(value) {
@@ -1456,7 +1499,7 @@
         const safeModelLabel = escapeHtml(acc.model_label || '');
         const rawProxy = String(acc.proxy || '').trim();
         const safeProxy = escapeHtml(isReadonlyQueue ? '' : rawProxy);
-        const safeReadonlyProxy = escapeHtml(maskProxyForDisplay(rawProxy));
+        const safeReadonlyProxy = escapeHtml(maskProxyListForDisplay(rawProxy));
         const hasProxy = !isReadonlyQueue && rawProxy;
         const messageCount = Array.isArray(acc.custom_messages)
           ? acc.custom_messages.filter(x => String(x || '').trim()).length
@@ -1468,7 +1511,7 @@
 
         const proxyCell = isReadonlyQueue
           ? `<td><span class="proxy-readonly" title="${safeReadonlyProxy || 'No proxy'}">${safeReadonlyProxy || '—'}</span></td>`
-          : `<td><input type="text" id="acc_proxy_${i}" value="${safeProxy}" placeholder="host:port or user:pass@host:port" style="font-size:0.8rem;${hasProxy ? ' border-color: rgba(216,155,2,0.6);' : ''}"></td>`;
+          : `<td><textarea id="acc_proxy_${i}" class="proxy-input" rows="3" placeholder="proxy1, proxy2, ... (max 5)" style="${hasProxy ? ' border-color: rgba(216,155,2,0.6);' : ''}">${safeProxy}</textarea></td>`;
 
         const userCell = isReadonlyQueue
           ? `<td><span class="proxy-readonly" title="${safeUser || '—'}">${safeUser || '—'}</span></td>`
@@ -1594,18 +1637,31 @@
 
       const cleanAccs = editableAccounts
         .filter(a => a.username.trim() !== "")
-        .map(a => ({
-          username: a.username.trim(),
-          password: String(a.password || '').trim(),
-          model_label: String(a.model_label || '').trim(),
-          proxy: String(a.proxy || '').trim(),
-          custom_messages: Array.isArray(a.custom_messages)
-            ? a.custom_messages.map(x => String(x || '').trim()).filter(x => x)
-            : [],
-          owner_username: a.owner_username || globalCurrentUser.username || 'master',
-          cookies_raw: a.cookies_raw || '',
-          cookies_touched: !!a.cookies_touched,
-        }));
+        .map(a => {
+          const proxyNormalized = normalizeProxyInputForSave(a.proxy, MAX_PROXIES_PER_ACCOUNT);
+          return {
+            username: a.username.trim(),
+            password: String(a.password || '').trim(),
+            model_label: String(a.model_label || '').trim(),
+            proxy: proxyNormalized.proxies.join(', '),
+            proxy_overflow: proxyNormalized.overflow,
+            custom_messages: Array.isArray(a.custom_messages)
+              ? a.custom_messages.map(x => String(x || '').trim()).filter(x => x)
+              : [],
+            owner_username: a.owner_username || globalCurrentUser.username || 'master',
+            cookies_raw: a.cookies_raw || '',
+            cookies_touched: !!a.cookies_touched,
+          };
+        });
+
+      const overflowProxyUsers = cleanAccs
+        .filter(a => Number(a.proxy_overflow || 0) > 0)
+        .map(a => a.username || '(unknown)');
+
+      if (overflowProxyUsers.length) {
+        showError(`Maximum ${MAX_PROXIES_PER_ACCOUNT} proxies per account. Fix: ${overflowProxyUsers.join(', ')}`);
+        return;
+      }
 
       const missingPasswordUsers = cleanAccs
         .filter(a => !a.password)
