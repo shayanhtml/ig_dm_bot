@@ -154,6 +154,8 @@
     .badge-running { background: rgba(216, 155, 2, 0.22); color: #f3c24d; border: 1px solid rgba(216, 155, 2, 0.45); }
     .badge-stopped, .badge-idle { background: rgba(41, 41, 41, 0.9); color: #d4d4d4; border: 1px solid rgba(216, 155, 2, 0.32); }
     .badge-cooldown { background: rgba(216, 155, 2, 0.12); color: #eab739; border: 1px solid rgba(216, 155, 2, 0.35); }
+    .badge-stopping { background: rgba(216, 155, 2, 0.16); color: #f3c24d; border: 1px solid rgba(216, 155, 2, 0.45); }
+    .btn.is-loading { opacity: 0.85; pointer-events: none; }
 
     /* Modal Overlay */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
@@ -690,6 +692,8 @@
     let activeAccountMessageUser = '';
     let activeResetPasswordUser = '';
     let confirmModalResolver = null;
+    let pendingBotCommand = '';
+    let lastKnownBotStatus = 'idle';
 
     // ── UI Navigation ──
     function switchTab(tabId, buttonEl) {
@@ -2139,10 +2143,52 @@
     }
 
     // ── Dashboard Live Stream ──
+    function renderBotControlButtons(status) {
+      const btnStart = document.getElementById('btnStart');
+      const btnStop = document.getElementById('btnStop');
+      if (!btnStart || !btnStop) {
+        return;
+      }
+
+      const normalizedStatus = String(status || 'idle').toLowerCase();
+      const canStart = ['idle', 'stopped'].includes(normalizedStatus);
+
+      if (pendingBotCommand === 'start' && !canStart) {
+        pendingBotCommand = '';
+      }
+      if (pendingBotCommand === 'stop' && canStart) {
+        pendingBotCommand = '';
+      }
+
+      const startLoading = pendingBotCommand === 'start';
+      const stopLoading = pendingBotCommand === 'stop';
+
+      if (startLoading || canStart) {
+        btnStart.style.display = 'flex';
+        btnStop.style.display = 'none';
+      } else {
+        btnStart.style.display = 'none';
+        btnStop.style.display = 'flex';
+      }
+
+      btnStart.classList.toggle('is-loading', startLoading);
+      btnStop.classList.toggle('is-loading', stopLoading);
+      btnStart.disabled = startLoading || !canStart;
+      btnStop.disabled = stopLoading || canStart;
+
+      btnStart.innerHTML = startLoading
+        ? '<i class="fas fa-spinner fa-spin"></i> STARTING...'
+        : '<i class="fas fa-play"></i> START BOT';
+      btnStop.innerHTML = stopLoading
+        ? '<i class="fas fa-spinner fa-spin"></i> STOPPING...'
+        : '<i class="fas fa-stop"></i> STOP BOT';
+    }
+
     async function fetchStatus() {
       try {
         const res = await fetch('/api/status');
         const state = await res.json();
+        lastKnownBotStatus = String(state.status || 'idle').toLowerCase();
         
         // Update Stats
         document.getElementById('lifetimeDms').innerText = state.total_dms_all_time || 0;
@@ -2155,9 +2201,7 @@
         badge.innerText = `STATUS: ${state.status.toUpperCase()}`;
         
         // Buttons
-        const canStart = ['idle', 'stopped'].includes(state.status);
-        document.getElementById('btnStart').style.display = canStart ? 'flex' : 'none';
-        document.getElementById('btnStop').style.display = canStart ? 'none' : 'flex';
+        renderBotControlButtons(state.status);
         
         // Logs
         const html = state.log_lines.map(l => {
@@ -2177,8 +2221,46 @@
     }
     
     async function botCommand(cmd) {
-      await fetch('/' + cmd);
-      setTimeout(fetchStatus, 500); // refresh UI
+      if (!globalIsMaster) {
+        return;
+      }
+
+      const normalizedCmd = String(cmd || '').toLowerCase();
+      if (!['start', 'stop'].includes(normalizedCmd)) {
+        return;
+      }
+      if (pendingBotCommand) {
+        return;
+      }
+
+      pendingBotCommand = normalizedCmd;
+      renderBotControlButtons(lastKnownBotStatus);
+
+      try {
+        const res = await fetch('/' + normalizedCmd, { cache: 'no-store' });
+        if (!res.ok) {
+          throw new Error(`Request failed (${res.status})`);
+        }
+      } catch (e) {
+        pendingBotCommand = '';
+        renderBotControlButtons(lastKnownBotStatus);
+        showError(e.message || `Failed to ${normalizedCmd} bot`);
+        return;
+      }
+
+      const deadline = Date.now() + (normalizedCmd === 'stop' ? 20000 : 8000);
+      while (Date.now() < deadline) {
+        await fetchStatus();
+        if (!pendingBotCommand) {
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 400));
+      }
+
+      if (pendingBotCommand === normalizedCmd) {
+        pendingBotCommand = '';
+        renderBotControlButtons(lastKnownBotStatus);
+      }
     }
 
     // ── Account Message UI Handlers ──

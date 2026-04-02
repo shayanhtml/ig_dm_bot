@@ -122,6 +122,31 @@ def log_and_telegram(msg: str):
     telegram_bot.add_log(msg)
 
 
+def _is_expected_driver_shutdown_error(err: Exception) -> bool:
+    """Return True for common Selenium transport errors triggered by forced stop."""
+    text = str(err or "").strip().lower()
+    if not text:
+        return False
+
+    markers = (
+        "httpconnectionpool(host='localhost'",
+        "max retries exceeded with url: /session/",
+        "newconnectionerror",
+        "failed to establish a new connection",
+        "winerror 10061",
+        "connection refused",
+        "invalid session id",
+        "no such window",
+        "target window already closed",
+        "chrome not reachable",
+        "not connected to devtools",
+        "disconnected:",
+        "connection aborted",
+        "remote end closed connection",
+    )
+    return any(marker in text for marker in markers)
+
+
 def _parse_iso_datetime(raw_value):
     text = str(raw_value or "").strip()
     if not text:
@@ -554,8 +579,11 @@ def run_bot(stop_event=None, account_owner=None):
                 refresh_cookies(driver, username)
 
             except Exception as e:
-                log_and_telegram(f"❌ Error with @{username}: {e}")
-                telegram_bot.send_error(str(e))
+                if stop_event and stop_event.is_set() and _is_expected_driver_shutdown_error(e):
+                    log_and_telegram(f"🛑 Stop requested while closing @{username} browser session")
+                else:
+                    log_and_telegram(f"❌ Error with @{username}: {e}")
+                    telegram_bot.send_error(str(e))
             finally:
                 close_driver(driver)
                 _unregister_driver(driver)
@@ -575,8 +603,11 @@ def run_bot(stop_event=None, account_owner=None):
     except KeyboardInterrupt:
         log_and_telegram("🛑 Bot stopped by user (Ctrl+C)")
     except Exception as e:
-        log_and_telegram(f"❌ Fatal error: {e}")
-        telegram_bot.send_error(str(e))
+        if stop_event and stop_event.is_set() and _is_expected_driver_shutdown_error(e):
+            log_and_telegram("🛑 Stop requested. Browser connections were terminated.")
+        else:
+            log_and_telegram(f"❌ Fatal error: {e}")
+            telegram_bot.send_error(str(e))
     finally:
         _maybe_send_24h_dm_summary(hours=DM_SUMMARY_WINDOW_HOURS)
         telegram_bot.send_session_complete(total_dms_sent, len(completed_model_keys))

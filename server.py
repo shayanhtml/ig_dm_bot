@@ -473,6 +473,9 @@ def bot_loop():
             time.sleep(5)
 
     bot_state["status"] = "stopped"
+    bot_state["next_run"] = None
+    bot_state["started_by"] = ""
+    bot_state["started_by_role"] = "employee"
     logger.info("🛑 Bot loop stopped.")
 
 
@@ -1119,16 +1122,17 @@ def stop_bot():
     force_stop_active_sessions()
     with bot_thread_lock:
         if bot_thread and bot_thread.is_alive():
-            bot_thread.join(timeout=10)
-    bot_state["status"] = "stopped"
-    bot_state["started_by"] = ""
-    bot_state["started_by_role"] = "employee"
+            bot_state["status"] = "stopping"
+        else:
+            bot_state["status"] = "stopped"
+            bot_state["started_by"] = ""
+            bot_state["started_by_role"] = "employee"
     _log_actor_action(
-      "stop_bot",
-      target_type="runtime",
-      target_value="bot",
-      details={"status": "stopped"},
-      employees_only=True,
+        "stop_bot",
+        target_type="runtime",
+        target_value="bot",
+        details={"status": bot_state.get("status", "stopped")},
+        employees_only=True,
     )
     return "<script>window.location='/'</script>"
 
