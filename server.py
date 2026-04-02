@@ -19,6 +19,7 @@ from flask import Flask, jsonify, render_template, request, redirect, session, u
 from bot import run_bot, setup_logging, force_stop_active_sessions
 from config import database
 from config.database import get_setting
+from telegram.bot import telegram_bot
 
 # ── Config ──
 BOT_LOOP_ENABLED = True
@@ -128,6 +129,26 @@ def _setting_int(key: str) -> int:
     return int(value)
   except (TypeError, ValueError):
     raise ValueError(f"Invalid integer setting '{key}': {value}")
+
+
+def _refresh_total_dms_all_time():
+  """Refresh lifetime DM count from DB for live dashboard/status reporting."""
+  try:
+    bot_state["total_dms_all_time"] = int(database.get_lifetime_dm_sent_total() or 0)
+  except Exception as e:
+    logger.debug(f"Failed to refresh lifetime DM count: {e}")
+
+
+def _ensure_telegram_polling():
+  """Keep Telegram command polling available even when automation is idle."""
+  try:
+    telegram_bot.start_polling()
+  except Exception as e:
+    logger.debug(f"Failed to ensure Telegram polling: {e}")
+
+
+_refresh_total_dms_all_time()
+_ensure_telegram_polling()
 
 
 def _normalize_text_list(raw_items):
@@ -441,15 +462,7 @@ def bot_loop():
         bot_state["total_sessions"] = session_num
         bot_state["last_run_end"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Count total DMs from database log table
-        try:
-            dm_log = database.get_dm_logs()
-            bot_state["total_dms_all_time"] = sum(
-                1 for ts in dm_log.values()
-                if ts
-            )
-        except Exception:
-            pass
+        _refresh_total_dms_all_time()
 
         if stop_event.is_set():
             break
@@ -1076,6 +1089,8 @@ def api_all_activity():
 @login_required
 @master_required
 def api_status():
+    _refresh_total_dms_all_time()
+    _ensure_telegram_polling()
     return jsonify(bot_state)
 
 

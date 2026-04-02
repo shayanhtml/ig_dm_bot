@@ -398,6 +398,7 @@ def run_bot(stop_event=None, account_owner=None):
 
     total_dms_sent = 0
     completed_model_keys = set()
+    session_account_dm_counts = {}
 
     try:
         for account in accounts:
@@ -553,11 +554,12 @@ def run_bot(stop_event=None, account_owner=None):
                     telegram_bot.stats["dms_sent"] = total_dms_sent
 
                     if dms_for_model > 0:
+                        session_account_dm_counts[username] = int(session_account_dm_counts.get(username, 0)) + int(dms_for_model)
                         model_key = _normalize_model_key(model_username) or str(model_username or "").strip().lower()
                         if model_key:
                             completed_model_keys.add(model_key)
                         telegram_bot.stats["models_processed"] = len(completed_model_keys)
-                        telegram_bot.send_model_complete(model_username, dms_for_model)
+                        telegram_bot.send_model_complete(model_username, dms_for_model, sender_account=username)
 
                     # Check if still logged in
                     if not is_logged_in(driver):
@@ -610,9 +612,12 @@ def run_bot(stop_event=None, account_owner=None):
             telegram_bot.send_error(str(e))
     finally:
         _maybe_send_24h_dm_summary(hours=DM_SUMMARY_WINDOW_HOURS)
-        telegram_bot.send_session_complete(total_dms_sent, len(completed_model_keys))
+        telegram_bot.send_session_complete(
+            total_dms_sent,
+            len(completed_model_keys),
+            by_account=session_account_dm_counts,
+        )
         telegram_bot.stats["status"] = "Stopped"
-        telegram_bot.stop_polling()
 
     logger.info("=" * 60)
     logger.info(f"  SESSION COMPLETE — {total_dms_sent} DMs sent, {len(completed_model_keys)} unique models done")

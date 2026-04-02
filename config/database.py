@@ -833,6 +833,29 @@ def get_dm_sent_summary_last_hours(hours: int = 24, include_all_accounts: bool =
     finally:
         conn.close()
 
+
+def get_lifetime_dm_sent_total() -> int:
+    """Return lifetime sent DMs using event log with legacy fallback compatibility."""
+    conn = _get_connection()
+    try:
+        lifetime_row = conn.execute(
+            "SELECT COUNT(*) AS c FROM dm_event_log WHERE status = 'sent'"
+        ).fetchone()
+        lifetime_event_sent = int(
+            lifetime_row["c"] if lifetime_row and lifetime_row["c"] is not None else 0
+        )
+
+        legacy_row = conn.execute(
+            "SELECT COUNT(*) AS c FROM dm_log WHERE timestamp IS NOT NULL AND TRIM(timestamp) != ''"
+        ).fetchone()
+        legacy_lifetime_sent = int(
+            legacy_row["c"] if legacy_row and legacy_row["c"] is not None else 0
+        )
+
+        return max(lifetime_event_sent, legacy_lifetime_sent)
+    finally:
+        conn.close()
+
 # ── Cookies CRUD ──
 def get_cookies(username):
     conn = _get_connection()

@@ -145,21 +145,40 @@ class TelegramBot:
         """Send a progress update. Muted by user request to prevent spam."""
         pass
 
-    def send_model_complete(self, model: str, dms_sent: int):
+    def send_model_complete(self, model: str, dms_sent: int, sender_account: str = ""):
         """Notify that a model target is complete."""
+        sender = str(sender_account or "").strip().lstrip("@")
+        sender_line = f"👤 IG Account: `@{sender}`\n" if sender else ""
+
         self.send(
             f"✅ *MODEL COMPLETE*\n\n"
             f"🎯 Model: `@{model}`\n"
+            f"{sender_line}"
             f"✉️ DMs sent: {dms_sent}"
         )
 
-    def send_session_complete(self, total_dms: int, models_done: int):
+    def send_session_complete(self, total_dms: int, models_done: int, by_account=None):
         """Notify that the entire bot session is done."""
+        rows = by_account if isinstance(by_account, dict) else {}
+        account_lines = []
+        for account, count in sorted(rows.items(), key=lambda item: (-int(item[1] or 0), str(item[0]).lower())):
+            safe_account = str(account or "").strip().lstrip("@") or "unknown"
+            try:
+                safe_count = int(count or 0)
+            except Exception:
+                safe_count = 0
+            account_lines.append(f"• `@{safe_account}`: `{safe_count}`")
+
+        account_section = ""
+        if account_lines:
+            account_section = "\n\n*DMs By Our Accounts:*\n" + "\n".join(account_lines[:40])
+
         self.send(
             f"🏁 *SESSION COMPLETE*\n\n"
             f"✉️ Total DMs: {total_dms}\n"
             f"🎯 Models: {models_done}\n"
             f"⏰ Started : {self._started_ago()}"
+            f"{account_section}"
         )
 
     def send_24h_dm_summary(self, summary: dict):
