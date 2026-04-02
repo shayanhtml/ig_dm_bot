@@ -772,18 +772,19 @@ def get_dm_sent_summary_last_hours(hours: int = 24, include_all_accounts: bool =
         lifetime_row = conn.execute(
             "SELECT COUNT(*) AS c FROM dm_event_log WHERE status = 'sent'"
         ).fetchone()
-        lifetime_total_sent = int(
+        lifetime_event_sent = int(
             lifetime_row["c"] if lifetime_row and lifetime_row["c"] is not None else 0
         )
 
-        # Backward-compatible fallback for historical installs that only had dm_log.
-        if lifetime_total_sent <= 0:
-            legacy_row = conn.execute(
-                "SELECT COUNT(*) AS c FROM dm_log WHERE timestamp IS NOT NULL AND TRIM(timestamp) != ''"
-            ).fetchone()
-            lifetime_total_sent = int(
-                legacy_row["c"] if legacy_row and legacy_row["c"] is not None else 0
-            )
+        legacy_row = conn.execute(
+            "SELECT COUNT(*) AS c FROM dm_log WHERE timestamp IS NOT NULL AND TRIM(timestamp) != ''"
+        ).fetchone()
+        legacy_lifetime_sent = int(
+            legacy_row["c"] if legacy_row and legacy_row["c"] is not None else 0
+        )
+
+        # Keep lifetime totals compatible with historical installs while still using new event logs.
+        lifetime_total_sent = max(lifetime_event_sent, legacy_lifetime_sent)
 
         rows = conn.execute(
             """

@@ -205,8 +205,8 @@ class TelegramBot:
             lines.append("• _No DM activity recorded in this window._")
 
         self.send(
-            f"🧾 *DM SUMMARY (LAST {hours}H)*\n\n"
-            f"✉️ *Total Sent (Last {hours}H):* `{total_sent}`\n"
+            f"🧾 *DM SUMMARY*\n\n"
+            f"✉️ *Sent In Last {hours}H:* `{total_sent}`\n"
             f"🏁 *Lifetime Total Sent:* `{lifetime_total_sent}`\n\n"
             f"*Per Account:*\n"
             + "\n".join(lines)
