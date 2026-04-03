@@ -178,6 +178,19 @@
       text-overflow: ellipsis;
       vertical-align: middle;
     }
+    .password-field-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .password-field-wrap input {
+      min-width: 0;
+      flex: 1;
+    }
+    .password-copy-btn {
+      flex-shrink: 0;
+      padding: 0.45rem 0.58rem;
+    }
     .table-search-row {
       display: flex;
       align-items: center;
@@ -1042,6 +1055,67 @@
 
     function showError(msg) {
       showMessageModal(msg || 'Request failed', 'Error');
+    }
+
+    async function copyTextToClipboard(rawText) {
+      const text = String(rawText || '');
+      if (!text) {
+        return false;
+      }
+
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (e) {}
+      }
+
+      const temp = document.createElement('textarea');
+      temp.value = text;
+      temp.setAttribute('readonly', '');
+      temp.style.position = 'fixed';
+      temp.style.opacity = '0';
+      temp.style.pointerEvents = 'none';
+      document.body.appendChild(temp);
+      temp.focus();
+      temp.select();
+
+      let copied = false;
+      try {
+        copied = document.execCommand('copy');
+      } catch (e) {
+        copied = false;
+      }
+
+      document.body.removeChild(temp);
+      return copied;
+    }
+
+    async function copyAccountPassword(rowIndex) {
+      const idx = Number(rowIndex);
+      if (!Number.isInteger(idx) || idx < 0) {
+        showError('Unable to copy password from this row.');
+        return;
+      }
+
+      const inputEl = document.getElementById(`acc_pass_${idx}`);
+      const inputVal = inputEl ? String(inputEl.value || '') : '';
+      const fallbackVal = globalAccounts[idx] ? String(globalAccounts[idx].password || '') : '';
+      const passValue = inputVal || fallbackVal;
+
+      if (!passValue) {
+        showError('Password is empty. Nothing to copy.');
+        return;
+      }
+
+      const copied = await copyTextToClipboard(passValue);
+      if (!copied) {
+        showError('Clipboard access was blocked. Please copy the password manually.');
+        return;
+      }
+
+      const displayUser = String((globalAccounts[idx] && globalAccounts[idx].username) || '').trim() || `row ${idx + 1}`;
+      showToast(`Password copied for ${displayUser}.`);
     }
 
     function openAddLabelModal() {
@@ -2242,7 +2316,7 @@
 
       const passwordCell = isReadonlyQueue
         ? `<td><span class="proxy-readonly" title="********">********</span></td>`
-        : `<td><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="Required password"></td>`;
+        : `<td><div class="password-field-wrap"><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="Required password"><button class="btn btn-primary btn-sm password-copy-btn" type="button" title="Copy password" onclick="copyAccountPassword(${i})"><i class="fas fa-copy"></i></button></div></td>`;
 
       const profileCell = isReadonlyQueue
         ? `<span class="proxy-readonly" title="${safeProfilePreview}">${safeProfilePreview || '—'}</span>`
