@@ -234,6 +234,106 @@
       cursor: not-allowed;
       background: rgba(216, 155, 2, 0.06);
     }
+    .accounts-label-accordion {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .label-accordion-item {
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
+    .label-accordion-header {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      padding: 0.9rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.2s;
+    }
+    .label-accordion-header:hover {
+      background: rgba(216, 155, 2, 0.08);
+    }
+    .label-accordion-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .label-title-edit {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 58px;
+      height: 26px;
+      padding: 0 0.45rem;
+      border-radius: 6px;
+      border: 1px solid rgba(216, 155, 2, 0.35);
+      background: rgba(216, 155, 2, 0.1);
+      color: #f3c24d;
+      cursor: pointer;
+      font-size: 0.74rem;
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+    .label-title-edit:hover {
+      background: rgba(216, 155, 2, 0.2);
+      transform: translateY(-1px);
+    }
+    .label-accordion-meta {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0.25px;
+    }
+    .label-accordion-chevron {
+      color: var(--primary);
+      transition: transform 0.2s ease;
+      font-size: 0.86rem;
+    }
+    .label-accordion-item.is-open .label-accordion-chevron {
+      transform: rotate(180deg);
+    }
+    .label-accordion-body {
+      display: none;
+      border-top: 1px solid rgba(216, 155, 2, 0.22);
+      padding: 0.9rem;
+    }
+    .label-accordion-item.is-open .label-accordion-body {
+      display: block;
+    }
+    .label-accordion-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 0.75rem;
+    }
+    .accounts-group-table {
+      margin-bottom: 0;
+    }
+    .accounts-group-table th:nth-child(4),
+    .accounts-group-table td:nth-child(4) {
+      min-width: 140px;
+    }
+    .accounts-group-table td:last-child {
+      white-space: nowrap;
+    }
+    .label-accordion-empty {
+      border: 1px dashed rgba(216, 155, 2, 0.4);
+      border-radius: 10px;
+      padding: 0.9rem;
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      background: rgba(216, 155, 2, 0.06);
+    }
 
     ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.65); }
@@ -473,7 +573,7 @@
     <div id="tab-accounts" class="tab-content {% if not current_user or current_user.role != 'master' %}active{% endif %}">
       <div class="section-head">
         <h1>Instagram Accounts</h1>
-        <button class="btn btn-primary btn-sm" onclick="addAccountRow()"><i class="fas fa-plus"></i> Add Account</button>
+        <button class="btn btn-primary btn-sm" onclick="openAddLabelModal()"><i class="fas fa-plus"></i> Add Label</button>
       </div>
 
       <div id="accountsOwnerTabs" class="owner-tabs"></div>
@@ -495,14 +595,14 @@
             <i class="fas fa-xmark"></i> Clear
           </button>
         </div>
-        <div class="table-wrap">
+        <div id="accountsLabelAccordion" class="accounts-label-accordion"></div>
+        <div id="accountsFlatTableWrap" class="table-wrap" style="display:none;">
           <table id="accountsTable">
             <thead>
               <tr>
                 <th style="width: 84px;">Auto</th>
                 <th>Username</th>
                 <th>Password (Required)</th>
-                <th style="width: 190px;">Model Label (Optional)</th>
                 <th id="accountsOwnerHeader" style="width: 140px; display:none;">Owner</th>
                 <th style="width: 320px;">Proxy (Optional)</th>
                 <th style="width: 170px;">Bio + URL (Required)</th>
@@ -733,6 +833,52 @@
     </div>
   </div>
 
+  <!-- Account Label Modal -->
+  <div class="modal-overlay" id="accountsLabelModalOverlay">
+    <div class="modal" style="max-width: 520px;">
+      <h2>Add Model Label</h2>
+      <p>Create a label accordion first, then add IG accounts inside that label.</p>
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label>Model Label</label>
+        <input
+          type="text"
+          id="accountsLabelInput"
+          placeholder="e.g. Sylvia"
+          onkeydown="handleAccountsLabelInputKeydown(event)"
+        >
+      </div>
+
+      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+        <button class="btn" style="background:var(--surface-border); color: var(--text);" onclick="closeAddLabelModal()">Cancel</button>
+        <button class="btn btn-success" onclick="saveAddLabelModal()"><i class="fas fa-save"></i> Add Label</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename Account Label Modal -->
+  <div class="modal-overlay" id="accountsRenameLabelModalOverlay">
+    <div class="modal" style="max-width: 520px;">
+      <h2>Rename Model Label</h2>
+      <p>Update this label name. All accounts in this label will be moved to the new name.</p>
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label>Label Name</label>
+        <input
+          type="text"
+          id="accountsRenameLabelInput"
+          placeholder="e.g. Sylvia"
+          onkeydown="handleRenameLabelInputKeydown(event)"
+        >
+      </div>
+
+      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+        <button class="btn" style="background:var(--surface-border); color: var(--text);" onclick="closeRenameLabelModal()">Cancel</button>
+        <button class="btn btn-success" onclick="saveRenameLabelModal()"><i class="fas fa-save"></i> Rename Label</button>
+      </div>
+    </div>
+  </div>
+
   <!-- User Edit Modal -->
   <div class="modal-overlay" id="userEditModalOverlay">
     <div class="modal">
@@ -831,6 +977,7 @@
     let globalAllActivity = [];
     let globalAllActivityByDay = [];
     let globalQueueAccounts = [];
+    let globalAccountLabelDrafts = [];
     let globalAccountOwnerTabs = [];
     let activeAccountOwnerTab = 'all';
     let activeEditUser = '';
@@ -850,6 +997,9 @@
     let allActivityPage = 1;
     let accountsSearchQuery = '';
     let modelMessagesSearchQuery = '';
+    let activeAccountsLabelAccordion = 'generic';
+    let activeRenameLabelKey = '';
+    let activeRenameLabelScope = 'all';
 
     // ── UI Navigation ──
     function switchTab(tabId, buttonEl) {
@@ -892,6 +1042,212 @@
 
     function showError(msg) {
       showMessageModal(msg || 'Request failed', 'Error');
+    }
+
+    function openAddLabelModal() {
+      const overlay = document.getElementById('accountsLabelModalOverlay');
+      const input = document.getElementById('accountsLabelInput');
+      if (!overlay || !input) {
+        return;
+      }
+
+      input.value = '';
+      overlay.classList.add('show');
+      setTimeout(() => input.focus(), 0);
+    }
+
+    function closeAddLabelModal() {
+      const overlay = document.getElementById('accountsLabelModalOverlay');
+      if (overlay) {
+        overlay.classList.remove('show');
+      }
+    }
+
+    function handleAccountsLabelInputKeydown(event) {
+      if (!event || event.key !== 'Enter') {
+        return;
+      }
+      event.preventDefault();
+      saveAddLabelModal();
+    }
+
+    function _scopeIncludesAccount(ownerUsername, scopeKey) {
+      const owner = normalizeOwnerKey(ownerUsername || 'master');
+      const scope = String(scopeKey || '').trim().toLowerCase() || 'all';
+      if (!globalIsMaster) {
+        return owner === scope;
+      }
+      if (scope === 'all') {
+        return true;
+      }
+      return owner === scope;
+    }
+
+    function saveAddLabelModal() {
+      syncAccountsFromDom();
+
+      const input = document.getElementById('accountsLabelInput');
+      if (!input) {
+        return;
+      }
+
+      const labelMeta = normalizeAccountLabelGroup(input.value || '');
+      if (labelMeta.key === 'generic') {
+        showError('Please enter a specific label name. Generic label already exists by default.');
+        return;
+      }
+
+      const scope = getActiveLabelScope();
+
+      const labelExistsInAccounts = globalAccounts.some(acc => {
+        if (!_scopeIncludesAccount(acc.owner_username, scope)) {
+          return false;
+        }
+        return normalizeAccountLabelGroup(acc.model_label || '').key === labelMeta.key;
+      });
+
+      const labelExistsInDrafts = globalAccountLabelDrafts.some(item => {
+        return String(item.key || '') === labelMeta.key && String(item.scope || '') === scope;
+      });
+
+      if (labelExistsInAccounts || labelExistsInDrafts) {
+        showError(`Label "${labelMeta.display}" already exists in this view.`);
+        return;
+      }
+
+      globalAccountLabelDrafts.push({
+        key: labelMeta.key,
+        display: labelMeta.display,
+        value: labelMeta.value,
+        scope,
+      });
+
+      activeAccountsLabelAccordion = labelMeta.key;
+      closeAddLabelModal();
+      renderAccounts();
+      showToast(`Label ${labelMeta.display} added. Use Add Account inside that label.`);
+    }
+
+    function openEditLabelModal(rawLabelKey, rawDisplayName) {
+      const labelMeta = normalizeAccountLabelGroup(rawDisplayName || rawLabelKey || '');
+      const overlay = document.getElementById('accountsRenameLabelModalOverlay');
+      const input = document.getElementById('accountsRenameLabelInput');
+      if (!overlay || !input) {
+        return;
+      }
+
+      activeRenameLabelKey = String(rawLabelKey || '').trim().toLowerCase();
+      activeRenameLabelScope = getActiveLabelScope();
+      input.value = labelMeta.display;
+      overlay.classList.add('show');
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 0);
+    }
+
+    function closeRenameLabelModal() {
+      const overlay = document.getElementById('accountsRenameLabelModalOverlay');
+      if (overlay) {
+        overlay.classList.remove('show');
+      }
+      activeRenameLabelKey = '';
+      activeRenameLabelScope = 'all';
+    }
+
+    function handleRenameLabelInputKeydown(event) {
+      if (!event || event.key !== 'Enter') {
+        return;
+      }
+      event.preventDefault();
+      saveRenameLabelModal();
+    }
+
+    function saveRenameLabelModal() {
+      syncAccountsFromDom();
+
+      const sourceKey = String(activeRenameLabelKey || '').trim().toLowerCase();
+      if (!sourceKey) {
+        closeRenameLabelModal();
+        return;
+      }
+
+      const input = document.getElementById('accountsRenameLabelInput');
+      if (!input) {
+        return;
+      }
+
+      const nextMeta = normalizeAccountLabelGroup(input.value || '');
+      if (nextMeta.key === 'generic') {
+        showError('Please enter a specific label name.');
+        return;
+      }
+
+      const scope = String(activeRenameLabelScope || getActiveLabelScope()).trim().toLowerCase() || 'all';
+
+      const duplicateInAccounts = globalAccounts.some(acc => {
+        if (!_scopeIncludesAccount(acc.owner_username, scope)) {
+          return false;
+        }
+        const key = normalizeAccountLabelGroup(acc.model_label || '').key;
+        return key === nextMeta.key && key !== sourceKey;
+      });
+      if (duplicateInAccounts) {
+        showError(`Label "${nextMeta.display}" already exists in this view.`);
+        return;
+      }
+
+      const duplicateInDrafts = (globalAccountLabelDrafts || []).some(item => {
+        const itemScope = String(item && item.scope || 'all').trim().toLowerCase() || 'all';
+        const itemKey = String(item && item.key || '').trim().toLowerCase();
+        return itemScope === scope && itemKey === nextMeta.key && itemKey !== sourceKey;
+      });
+      if (duplicateInDrafts) {
+        showError(`Label "${nextMeta.display}" already exists in this view.`);
+        return;
+      }
+
+      let renamedAccounts = 0;
+      globalAccounts.forEach(acc => {
+        if (!_scopeIncludesAccount(acc.owner_username, scope)) {
+          return;
+        }
+
+        const key = normalizeAccountLabelGroup(acc.model_label || '').key;
+        if (key !== sourceKey) {
+          return;
+        }
+
+        acc.model_label = nextMeta.value;
+        renamedAccounts += 1;
+      });
+
+      let renamedDrafts = 0;
+      globalAccountLabelDrafts = (globalAccountLabelDrafts || []).map(item => {
+        const itemScope = String(item && item.scope || 'all').trim().toLowerCase() || 'all';
+        const itemKey = String(item && item.key || '').trim().toLowerCase();
+        if (itemScope !== scope || itemKey !== sourceKey) {
+          return item;
+        }
+
+        renamedDrafts += 1;
+        return {
+          ...item,
+          key: nextMeta.key,
+          display: nextMeta.display,
+          value: nextMeta.value,
+        };
+      });
+
+      if (!renamedAccounts && !renamedDrafts) {
+        showError('No matching label found to rename in this view.');
+        return;
+      }
+
+      activeAccountsLabelAccordion = nextMeta.key;
+      closeRenameLabelModal();
+      renderAccounts();
+      showToast(`Label renamed to ${nextMeta.display}.`);
     }
 
     function confirmModal(message, title = 'Confirm', confirmLabel = 'Confirm') {
@@ -1067,6 +1423,16 @@
     function normalizeOwnerKey(value) {
       const clean = String(value || '').trim().toLowerCase();
       return clean || 'master';
+    }
+
+    function getActiveLabelScope() {
+      const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
+      if (!globalIsMaster) {
+        return myOwnerKey;
+      }
+
+      const active = String(activeAccountOwnerTab || '').trim().toLowerCase();
+      return active || 'all';
     }
 
     function clampPageNumber(pageValue, totalPages) {
@@ -1664,6 +2030,8 @@
         renderUsers();
         await loadEmployeeActivity();
         await loadAllActivity();
+
+        globalAccountLabelDrafts = [];
         
         // Populate Accounts
         globalAccounts = (data.accounts || []).map(acc => ({
@@ -1775,14 +2143,21 @@
     }
 
     // ── Accounts Logic ──
-    function renderAccounts() {
-      const tbody = document.querySelector('#accountsTable tbody');
-      tbody.innerHTML = '';
+    function normalizeAccountLabelGroup(rawLabel) {
+      const clean = String(rawLabel || '').trim().replace(/^@+/, '');
+      const key = clean.toLowerCase();
+      if (['', 'generic', 'any', 'all', '*', 'none'].includes(key)) {
+        return { key: 'generic', display: 'Generic', value: '' };
+      }
+      return { key, display: clean, value: clean };
+    }
 
+    function collectVisibleAccountIndexes() {
       const visibleIndexes = [];
       const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
       const employeeTabKey = activeAccountOwnerTab || myOwnerKey;
       const accountSearch = normalizeSearchQuery(accountsSearchQuery);
+
       globalAccounts.forEach((acc, idx) => {
         const ownerKey = normalizeOwnerKey(acc.owner_username || 'master');
         const usernameKey = String(acc.username || '').trim().toLowerCase();
@@ -1803,115 +2178,242 @@
         }
       });
 
-      if (!visibleIndexes.length) {
-        const cols = globalIsMaster ? 10 : 9;
-        const searchText = String(accountsSearchQuery || '').trim();
-        const message = searchText
-          ? `No accounts match username "${escapeHtml(searchText)}".`
-          : ((globalIsMaster && activeAccountOwnerTab !== 'all')
-              ? 'No accounts for this employee yet.'
-              : 'No accounts added yet.');
-        tbody.innerHTML = `<tr><td colspan="${cols}" style="color: var(--text-muted); font-size:0.85rem;">${message}</td></tr>`;
-        accountsPage = 1;
-        renderPagination('accountsPagination', 1, 1, 0, 'setAccountsPage', ACCOUNTS_PAGE_SIZE);
+      const searchText = String(accountsSearchQuery || '').trim();
+      const emptyMessage = searchText
+        ? `No accounts match username "${escapeHtml(searchText)}".`
+        : ((globalIsMaster && activeAccountOwnerTab !== 'all')
+            ? 'No accounts for this employee yet.'
+            : 'No accounts added yet.');
+
+      return { visibleIndexes, emptyMessage };
+    }
+
+    function renderAccountsTableHeader() {
+      return `
+        <thead>
+          <tr>
+            <th style="width: 84px;">Auto</th>
+            <th>Username</th>
+            <th>Password (Required)</th>
+            ${globalIsMaster ? '<th style="width: 140px;">Owner</th>' : ''}
+            <th style="width: 320px;">Proxy (Optional)</th>
+            <th style="width: 170px;">Bio + URL (Required)</th>
+            <th style="width: 170px;">Custom Messages</th>
+            <th style="width: 140px;">Cookies</th>
+            <th style="width: 100px;">Action</th>
+          </tr>
+        </thead>
+      `;
+    }
+
+    function renderAccountRowByIndex(i, myOwnerKey) {
+      const acc = globalAccounts[i];
+      const ownerKey = normalizeOwnerKey(acc.owner_username || 'master');
+      const isReadonlyQueue = !globalIsMaster && (!!acc.shared_readonly || ownerKey !== myOwnerKey);
+      const automationEnabled = acc.automation_enabled !== false;
+      const safeUser = escapeHtml(acc.username || '');
+      const safePass = escapeHtml(acc.password || '');
+      const rawProxy = String(acc.proxy || '').trim();
+      const safeProxy = escapeHtml(isReadonlyQueue ? '' : rawProxy);
+      const safeReadonlyProxy = escapeHtml(maskProxyListForDisplay(rawProxy));
+      const hasProxy = !isReadonlyQueue && rawProxy;
+      const rawProfileNote = String(acc.profile_note || '').trim();
+      const safeProfilePreview = escapeHtml(rawProfileNote || 'No preset');
+      const profilePreviewLabel = rawProfileNote ? `${Math.min(rawProfileNote.length, 120)} chars` : 'No preset';
+      const messageCount = Array.isArray(acc.custom_messages)
+        ? acc.custom_messages.filter(x => String(x || '').trim()).length
+        : 0;
+      const safeOwner = escapeHtml(acc.owner_username || globalCurrentUser.username || 'master');
+      const ownerCell = globalIsMaster
+        ? `<td><span class="badge" style="background:rgba(216,155,2,0.16); border:1px solid rgba(216,155,2,0.38); color:#f3c24d;">${safeOwner}</span></td>`
+        : '';
+
+      const automationCell = isReadonlyQueue
+        ? `<td><span class="automation-indicator-readonly ${automationEnabled ? '' : 'is-disabled'}" title="${automationEnabled ? 'Automation enabled' : 'Automation disabled'}"><i class="fas ${automationEnabled ? 'fa-eye' : 'fa-eye-slash'}"></i></span></td>`
+        : `<td><button class="automation-toggle ${automationEnabled ? '' : 'is-disabled'}" title="${automationEnabled ? 'Automation enabled (click to disable)' : 'Automation disabled (click to enable)'}" onclick="toggleAccountAutomation(${i})"><i class="fas ${automationEnabled ? 'fa-eye' : 'fa-eye-slash'}"></i></button></td>`;
+
+      const proxyCell = isReadonlyQueue
+        ? `<td><span class="proxy-readonly" title="${safeReadonlyProxy || 'No proxy'}">${safeReadonlyProxy || '—'}</span></td>`
+        : `<td><textarea id="acc_proxy_${i}" class="proxy-input" rows="3" placeholder="proxy1, proxy2, ... (max 5)" style="${hasProxy ? ' border-color: rgba(216,155,2,0.6);' : ''}">${safeProxy}</textarea></td>`;
+
+      const userCell = isReadonlyQueue
+        ? `<td><span class="proxy-readonly" title="${safeUser || '—'}">${safeUser || '—'}</span></td>`
+        : `<td><input type="text" id="acc_user_${i}" value="${safeUser}"></td>`;
+
+      const passwordCell = isReadonlyQueue
+        ? `<td><span class="proxy-readonly" title="********">********</span></td>`
+        : `<td><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="Required password"></td>`;
+
+      const profileCell = isReadonlyQueue
+        ? `<span class="proxy-readonly" title="${safeProfilePreview}">${safeProfilePreview || '—'}</span>`
+        : `<button class="btn btn-primary btn-sm" title="Edit Bio + URL Preset" onclick="openAccountProfileModalFromRow(${i})"><i class="fas fa-id-card"></i> Bio+URL (${profilePreviewLabel})</button>`;
+
+      const customMessagesCell = isReadonlyQueue
+        ? `<span class="badge" style="background:rgba(216,155,2,0.12); border:1px solid rgba(216,155,2,0.3); color:#f3c24d;">${messageCount} msgs</span>`
+        : `<button class="btn btn-primary btn-sm" title="Edit Custom Messages" onclick="openAccountMessageModalFromRow(${i})"><i class="fas fa-comment-dots"></i> Messages (${messageCount})</button>`;
+
+      const cookiesCell = isReadonlyQueue
+        ? `<span class="badge" style="background:rgba(216,155,2,0.12); border:1px solid rgba(216,155,2,0.3); color:#f3c24d;">Queue</span>`
+        : `<button class="btn btn-primary btn-sm" title="Edit Cookies" onclick="openCookieModalFromRow(${i})"><i class="fas fa-cookie-bite"></i> Cookies</button>`;
+
+      const actionCell = isReadonlyQueue
+        ? `<span style="font-size:0.8rem; color: var(--text-muted);">Read-only</span>`
+        : `<button class="btn btn-danger btn-sm" title="Delete Account" onclick="removeAccount(${i})"><i class="fas fa-trash"></i></button>`;
+
+      const rowStyle = isReadonlyQueue
+        ? 'opacity:0.82;'
+        : (!automationEnabled ? 'opacity:0.72;' : '');
+
+      return `
+        <tr style="${rowStyle}">
+          ${automationCell}
+          ${userCell}
+          ${passwordCell}
+          ${ownerCell}
+          ${proxyCell}
+          <td>${profileCell}</td>
+          <td>${customMessagesCell}</td>
+          <td>${cookiesCell}</td>
+          <td><div class="accounts-actions">${actionCell}</div></td>
+        </tr>
+      `;
+    }
+
+    function toggleAccountsLabelAccordion(labelKey) {
+      syncAccountsFromDom();
+      const normalized = normalizeAccountLabelGroup(labelKey).key;
+      activeAccountsLabelAccordion = activeAccountsLabelAccordion === normalized ? '' : normalized;
+      renderAccounts();
+    }
+
+    function renderAccounts() {
+      const tbody = document.querySelector('#accountsTable tbody');
+      if (tbody) {
+        tbody.innerHTML = '';
+      }
+
+      const flatWrap = document.getElementById('accountsFlatTableWrap');
+      if (flatWrap) {
+        flatWrap.style.display = 'none';
+      }
+
+      const pagination = document.getElementById('accountsPagination');
+      if (pagination) {
+        pagination.style.display = 'none';
+        pagination.innerHTML = '';
+      }
+
+      const accordionRoot = document.getElementById('accountsLabelAccordion');
+      if (!accordionRoot) {
         return;
       }
 
-      const totalRows = visibleIndexes.length;
-      const totalPages = Math.max(1, Math.ceil(totalRows / ACCOUNTS_PAGE_SIZE));
-      accountsPage = clampPageNumber(accountsPage, totalPages);
-      const startOffset = (accountsPage - 1) * ACCOUNTS_PAGE_SIZE;
-      const pageIndexes = visibleIndexes.slice(startOffset, startOffset + ACCOUNTS_PAGE_SIZE);
-
-      pageIndexes.forEach((i) => {
-        const acc = globalAccounts[i];
-        const ownerKey = normalizeOwnerKey(acc.owner_username || 'master');
-        const isReadonlyQueue = !globalIsMaster && (!!acc.shared_readonly || ownerKey !== myOwnerKey);
-        const automationEnabled = acc.automation_enabled !== false;
-        const safeUser = escapeHtml(acc.username || '');
-        const safePass = escapeHtml(acc.password || '');
-        const safeModelLabel = escapeHtml(acc.model_label || '');
-        const rawProxy = String(acc.proxy || '').trim();
-        const safeProxy = escapeHtml(isReadonlyQueue ? '' : rawProxy);
-        const safeReadonlyProxy = escapeHtml(maskProxyListForDisplay(rawProxy));
-        const hasProxy = !isReadonlyQueue && rawProxy;
-        const rawProfileNote = String(acc.profile_note || '').trim();
-        const safeProfilePreview = escapeHtml(rawProfileNote || 'No preset');
-        const profilePreviewLabel = rawProfileNote ? `${Math.min(rawProfileNote.length, 120)} chars` : 'No preset';
-        const messageCount = Array.isArray(acc.custom_messages)
-          ? acc.custom_messages.filter(x => String(x || '').trim()).length
-          : 0;
-        const safeOwner = escapeHtml(acc.owner_username || globalCurrentUser.username || 'master');
-        const ownerCell = globalIsMaster
-          ? `<td><span class="badge" style="background:rgba(216,155,2,0.16); border:1px solid rgba(216,155,2,0.38); color:#f3c24d;">${safeOwner}</span></td>`
-          : '';
-
-        const automationCell = isReadonlyQueue
-          ? `<td><span class="automation-indicator-readonly ${automationEnabled ? '' : 'is-disabled'}" title="${automationEnabled ? 'Automation enabled' : 'Automation disabled'}"><i class="fas ${automationEnabled ? 'fa-eye' : 'fa-eye-slash'}"></i></span></td>`
-          : `<td><button class="automation-toggle ${automationEnabled ? '' : 'is-disabled'}" title="${automationEnabled ? 'Automation enabled (click to disable)' : 'Automation disabled (click to enable)'}" onclick="toggleAccountAutomation(${i})"><i class="fas ${automationEnabled ? 'fa-eye' : 'fa-eye-slash'}"></i></button></td>`;
-
-        const proxyCell = isReadonlyQueue
-          ? `<td><span class="proxy-readonly" title="${safeReadonlyProxy || 'No proxy'}">${safeReadonlyProxy || '—'}</span></td>`
-          : `<td><textarea id="acc_proxy_${i}" class="proxy-input" rows="3" placeholder="proxy1, proxy2, ... (max 5)" style="${hasProxy ? ' border-color: rgba(216,155,2,0.6);' : ''}">${safeProxy}</textarea></td>`;
-
-        const userCell = isReadonlyQueue
-          ? `<td><span class="proxy-readonly" title="${safeUser || '—'}">${safeUser || '—'}</span></td>`
-          : `<td><input type="text" id="acc_user_${i}" value="${safeUser}"></td>`;
-
-        const passwordCell = isReadonlyQueue
-          ? `<td><span class="proxy-readonly" title="********">********</span></td>`
-          : `<td><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="Required password"></td>`;
-
-        const modelLabelCell = isReadonlyQueue
-          ? `<td><span class="proxy-readonly" title="${safeModelLabel || '—'}">${safeModelLabel || '—'}</span></td>`
-          : `<td><input type="text" id="acc_model_${i}" value="${safeModelLabel}" placeholder="Generic (No label)"></td>`;
-
-        const profileCell = isReadonlyQueue
-          ? `<span class="proxy-readonly" title="${safeProfilePreview}">${safeProfilePreview || '—'}</span>`
-          : `<button class="btn btn-primary btn-sm" title="Edit Bio + URL Preset" onclick="openAccountProfileModalFromRow(${i})"><i class="fas fa-id-card"></i> Bio+URL (${profilePreviewLabel})</button>`;
-
-        const customMessagesCell = isReadonlyQueue
-          ? `<span class="badge" style="background:rgba(216,155,2,0.12); border:1px solid rgba(216,155,2,0.3); color:#f3c24d;">${messageCount} msgs</span>`
-          : `<button class="btn btn-primary btn-sm" title="Edit Custom Messages" onclick="openAccountMessageModalFromRow(${i})"><i class="fas fa-comment-dots"></i> Messages (${messageCount})</button>`;
-
-        const cookiesCell = isReadonlyQueue
-          ? `<span class="badge" style="background:rgba(216,155,2,0.12); border:1px solid rgba(216,155,2,0.3); color:#f3c24d;">Queue</span>`
-          : `<button class="btn btn-primary btn-sm" title="Edit Cookies" onclick="openCookieModalFromRow(${i})"><i class="fas fa-cookie-bite"></i> Cookies</button>`;
-
-        const actionCell = isReadonlyQueue
-          ? `<span style="font-size:0.8rem; color: var(--text-muted);">Read-only</span>`
-          : `<button class="btn btn-danger btn-sm" title="Delete Account" onclick="removeAccount(${i})"><i class="fas fa-trash"></i></button>`;
-
-        const rowStyle = isReadonlyQueue
-          ? 'opacity:0.82;'
-          : (!automationEnabled ? 'opacity:0.72;' : '');
-
-        tbody.innerHTML += `
-          <tr style="${rowStyle}">
-            ${automationCell}
-            ${userCell}
-            ${passwordCell}
-            ${modelLabelCell}
-            ${ownerCell}
-            ${proxyCell}
-            <td>
-              ${profileCell}
-            </td>
-            <td>
-              ${customMessagesCell}
-            </td>
-            <td>
-              ${cookiesCell}
-            </td>
-            <td><div class="accounts-actions">${actionCell}</div></td>
-          </tr>
-        `;
+      const { visibleIndexes, emptyMessage } = collectVisibleAccountIndexes();
+      const groupsByKey = {};
+      visibleIndexes.forEach(idx => {
+        const row = globalAccounts[idx] || {};
+        const labelMeta = normalizeAccountLabelGroup(row.model_label || '');
+        if (!groupsByKey[labelMeta.key]) {
+          groupsByKey[labelMeta.key] = {
+            key: labelMeta.key,
+            display: labelMeta.display,
+            value: labelMeta.value,
+            indexes: [],
+          };
+        }
+        groupsByKey[labelMeta.key].indexes.push(idx);
       });
 
-      renderPagination('accountsPagination', accountsPage, totalPages, totalRows, 'setAccountsPage', ACCOUNTS_PAGE_SIZE);
+      const activeScope = getActiveLabelScope();
+      (globalAccountLabelDrafts || []).forEach(draft => {
+        const key = String(draft && draft.key || '').trim().toLowerCase();
+        if (!key) {
+          return;
+        }
+
+        const draftScope = String(draft && draft.scope || 'all').trim().toLowerCase() || 'all';
+        if (!globalIsMaster) {
+          if (draftScope !== activeScope) {
+            return;
+          }
+        } else {
+          if (activeScope === 'all') {
+            if (draftScope !== 'all') {
+              return;
+            }
+          } else if (draftScope !== 'all' && draftScope !== activeScope) {
+            return;
+          }
+        }
+
+        if (!groupsByKey[key]) {
+          groupsByKey[key] = {
+            key,
+            display: String(draft.display || draft.value || key).trim() || key,
+            value: String(draft.value || draft.display || key).trim() || key,
+            indexes: [],
+          };
+        }
+      });
+
+      if (!Object.keys(groupsByKey).length) {
+        accordionRoot.innerHTML = `<div class="label-accordion-empty">${emptyMessage}</div>`;
+        return;
+      }
+
+      const groups = Object.values(groupsByKey).sort((a, b) => {
+        if (a.key === 'generic' && b.key !== 'generic') return 1;
+        if (a.key !== 'generic' && b.key === 'generic') return -1;
+        return String(a.display || '').toLowerCase().localeCompare(String(b.display || '').toLowerCase());
+      });
+
+      if (activeAccountsLabelAccordion && !groups.some(group => group.key === activeAccountsLabelAccordion)) {
+        activeAccountsLabelAccordion = groups[0].key;
+      }
+
+      const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
+      const headerHtml = renderAccountsTableHeader();
+
+      accordionRoot.innerHTML = groups.map(group => {
+        const expanded = activeAccountsLabelAccordion === group.key;
+        const encodedKey = encodeURIComponent(group.key);
+        const encodedLabel = encodeURIComponent(group.value || '');
+        const encodedDisplay = encodeURIComponent(group.display || '');
+        const editLabelControl = `<span class="label-title-edit" title="Edit label name" onclick="event.stopPropagation(); openEditLabelModal(decodeURIComponent('${encodedKey}'), decodeURIComponent('${encodedDisplay}'));"><i class="fas fa-pen" style="margin-right:0.3rem;"></i>Edit</span>`;
+        const rowsHtml = group.indexes.length
+          ? group.indexes.map(idx => renderAccountRowByIndex(idx, myOwnerKey)).join('')
+          : `<tr><td colspan="${globalIsMaster ? 9 : 8}" style="color: var(--text-muted); font-size:0.84rem;">No accounts in this label yet. Use Add Account to create one.</td></tr>`;
+
+        return `
+          <div class="label-accordion-item ${expanded ? 'is-open' : ''}">
+            <button type="button" class="label-accordion-header" onclick="toggleAccountsLabelAccordion(decodeURIComponent('${encodedKey}'))">
+              <span class="label-accordion-title">${escapeHtml(group.display)} ${editLabelControl}</span>
+              <span class="label-accordion-meta">(${group.indexes.length}) IG Accounts Alive</span>
+              <i class="fas fa-chevron-down label-accordion-chevron"></i>
+            </button>
+            <div class="label-accordion-body">
+              <div class="label-accordion-actions">
+                <button class="btn btn-primary btn-sm" type="button" onclick="addAccountRowByLabel(decodeURIComponent('${encodedLabel}'))"><i class="fas fa-plus"></i> Add Account</button>
+              </div>
+              <div class="table-wrap">
+                <table class="accounts-group-table">
+                  ${headerHtml}
+                  <tbody>
+                    ${rowsHtml}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function addAccountRowByLabel(labelValue) {
+      addAccountRow(labelValue);
     }
     
-    function addAccountRow() {
+    function addAccountRow(defaultModelLabel = '') {
       // Sync current DOM values back to array first
       syncAccountsFromDom();
 
@@ -1923,10 +2425,17 @@
         ? normalizeOwnerKey(activeAccountOwnerTab)
         : (globalCurrentUser.username || 'master');
 
+      const labelMeta = normalizeAccountLabelGroup(defaultModelLabel || '');
+      const activeScope = getActiveLabelScope();
+      globalAccountLabelDrafts = (globalAccountLabelDrafts || []).filter(item => {
+        return !(String(item && item.key || '').trim().toLowerCase() === labelMeta.key
+          && String(item && item.scope || '').trim().toLowerCase() === activeScope);
+      });
+
       globalAccounts.push({
         username: "",
         password: "",
-        model_label: "",
+        model_label: labelMeta.value,
         proxy: "",
         profile_note: "",
         custom_messages: [],
@@ -1936,7 +2445,7 @@
         cookies_touched: false,
         shared_readonly: false,
       });
-      accountsPage = Number.MAX_SAFE_INTEGER;
+      activeAccountsLabelAccordion = labelMeta.key;
       buildAccountsOwnerTabs();
       renderAccountsOwnerTabs();
       renderAccounts();
@@ -1988,11 +2497,9 @@
 
         const u = document.getElementById(`acc_user_${i}`);
         const p = document.getElementById(`acc_pass_${i}`);
-        const ml = document.getElementById(`acc_model_${i}`);
         const pr = document.getElementById(`acc_proxy_${i}`);
         if(u) acc.username = u.value;
         if(p) acc.password = p.value;
-        if(ml) acc.model_label = ml.value;
         if(pr) acc.proxy = pr.value.trim();
         if (!Array.isArray(acc.custom_messages)) {
           acc.custom_messages = [];

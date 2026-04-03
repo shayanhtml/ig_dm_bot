@@ -249,10 +249,16 @@ def _build_account_pool_summary(accounts: list, models: list) -> str:
         if label_key not in display_by_key:
             display_by_key[label_key] = label_raw or label_key
 
+    ordered_keys = sorted(counts_by_model.keys(), key=lambda k: display_by_key.get(k, k).lower())
+    label_width = len("Generic")
+    for key in ordered_keys:
+        label_width = max(label_width, len(str(display_by_key.get(key, key))))
+
     lines = ["Model Labels:"]
-    for key in sorted(counts_by_model.keys(), key=lambda k: display_by_key.get(k, k).lower()):
-        lines.append(f"{display_by_key.get(key, key)}: ({counts_by_model[key]}) IG Accounts Alive")
-    lines.append(f"Generic: ({generic_count}) IG Accounts Alive")
+    for key in ordered_keys:
+        display_name = str(display_by_key.get(key, key)).strip() or key
+        lines.append(f"{display_name.ljust(label_width)} : ({counts_by_model[key]}) IG Accounts Alive")
+    lines.append(f"{'Generic'.ljust(label_width)} : ({generic_count}) IG Accounts Alive")
     return "\n".join(lines)
 
 
