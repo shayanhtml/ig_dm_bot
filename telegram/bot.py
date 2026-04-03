@@ -105,7 +105,7 @@ class TelegramBot:
             f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}\n"
             "Use `/status` for current state\n"
             "Use `/target` for active account + model target\n"
-            "Use `/automation list` to view disabled accounts\n"
+            "Use `/automation @username on|off` for account automation\n"
             "Use `/summary` for DM summary\n"
             "Use `/accounts` for IG bios + urls\n"
             "Use `/stop` to request stop"
@@ -183,13 +183,13 @@ class TelegramBot:
                 selected_rows = selected_rows[:safe_limit]
 
         lines = []
-        for row in selected_rows:
+        for idx, row in enumerate(selected_rows, start=1):
             username = row["username"]
             profile_note = row["profile_note"]
             if profile_note:
-                lines.append(f"• `@{username}`\n  `{profile_note}`")
+                lines.append(f"{idx}. `@{username}`\n   `{profile_note}`")
             else:
-                lines.append(f"• `@{username}`\n  `_No bio/url preset_`")
+                lines.append(f"{idx}. `@{username}`\n   `_No bio/url preset_`")
 
         if not lines:
             lines = ["_No accounts configured yet._"]
@@ -522,7 +522,7 @@ class TelegramBot:
                 logger.error(f"[Telegram] Failed to load accounts on /accounts command: {e}")
                 self.send("❌ Failed to fetch account bios/urls right now.")
 
-        # /automation <@account> <on|off> | /automation list
+        # /automation <@account> <on|off>
         elif text_lower.startswith("/automation") or text_lower.startswith("/auto"):
             self._handle_automation_command(text)
 
@@ -581,7 +581,6 @@ class TelegramBot:
         self.send(
             "👁️ *ACCOUNT AUTOMATION CONTROL*\n\n"
             "Use commands below:\n"
-            "• `/automation list`\n"
             "• `/automation @username off`\n"
             "• `/automation @username on`"
         )
@@ -594,42 +593,6 @@ class TelegramBot:
 
         if len(parts) == 1:
             self._send_automation_usage()
-            return
-
-        sub = parts[1].lower()
-        if sub in ("list", "ls"):
-            try:
-                accounts = database.get_accounts(include_all=True)
-            except Exception as e:
-                logger.error(f"[Telegram] Failed to load automation list: {e}")
-                self.send("❌ Failed to read account automation status right now.")
-                return
-
-            disabled_rows = [
-                acc for acc in accounts
-                if not bool(acc.get("automation_enabled", True))
-            ]
-            if not disabled_rows:
-                self.send("👁️ *ACCOUNT AUTOMATION*\n\nAll accounts are currently *enabled* for automation.")
-                return
-
-            lines = []
-            for account in sorted(disabled_rows, key=lambda item: str(item.get("username") or "").lower())[:80]:
-                username = self._normalize_account_username(account.get("username", ""))
-                if not username:
-                    continue
-                owner = str(account.get("owner_username", "") or "master").strip().lower() or "master"
-                lines.append(f"• `@{username}` _(owner: {owner})_")
-
-            suffix = ""
-            if len(disabled_rows) > len(lines):
-                suffix = f"\n• ... and `{len(disabled_rows) - len(lines)}` more"
-
-            self.send(
-                "🙈 *AUTOMATION DISABLED ACCOUNTS*\n\n"
-                + "\n".join(lines)
-                + suffix
-            )
             return
 
         if len(parts) < 3:
