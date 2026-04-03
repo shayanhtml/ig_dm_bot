@@ -178,6 +178,18 @@
       text-overflow: ellipsis;
       vertical-align: middle;
     }
+    .table-search-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.8rem;
+    }
+    .table-search-row input {
+      max-width: 420px;
+    }
+    .table-search-row .btn {
+      flex-shrink: 0;
+    }
     .table-pagination {
       display: none;
       align-items: center;
@@ -297,6 +309,12 @@
       .two-col-grid { grid-template-columns: 1fr; }
       .section-head { flex-direction: column; align-items: flex-start; margin-bottom: 1rem; }
       .section-head .btn { width: 100%; justify-content: center; }
+      .table-search-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .table-search-row input { max-width: none; }
+      .table-search-row .btn { width: 100%; justify-content: center; }
       .terminal { height: 260px; }
       .badge { font-size: 0.7rem; }
       .toast { left: 12px; right: 12px; bottom: 12px; padding: 0.85rem 1rem; }
@@ -396,6 +414,7 @@
             </tbody>
           </table>
         </div>
+        <div id="employeeActivityPagination" class="table-pagination"></div>
       </div>
 
     </div>
@@ -445,6 +464,7 @@
             </tbody>
           </table>
         </div>
+        <div id="allActivityPagination" class="table-pagination"></div>
       </div>
     </div>
     {% endif %}
@@ -464,6 +484,17 @@
           <br><span style="color:var(--primary);">👁 Automation</span> — click eye icon per account to enable/disable bot automation for that account.
           <br><span style="color:var(--primary);">🌐 Proxy</span> — optional, per-account. Add up to 5 proxies separated by comma (failover order left to right). Formats: <code style="font-size:0.78rem; background:#1a1a1a; padding:1px 4px; border-radius:3px;">host:port</code>, <code style="font-size:0.78rem; background:#1a1a1a; padding:1px 4px; border-radius:3px;">user:pass@host:port</code>, <code style="font-size:0.78rem; background:#1a1a1a; padding:1px 4px; border-radius:3px;">socks5://host:port</code>.
         </p>
+        <div class="table-search-row">
+          <input
+            type="text"
+            id="accountsSearchInput"
+            placeholder="Search accounts by username"
+            oninput="setAccountsSearch(this.value)"
+          >
+          <button type="button" class="btn btn-primary btn-sm" onclick="clearAccountsSearch()">
+            <i class="fas fa-xmark"></i> Clear
+          </button>
+        </div>
         <div class="table-wrap">
           <table id="accountsTable">
             <thead>
@@ -506,6 +537,18 @@
         </div>
 
         <datalist id="modelsDatalist"></datalist>
+
+        <div class="table-search-row">
+          <input
+            type="text"
+            id="modelMessagesSearchInput"
+            placeholder="Search targets by model username"
+            oninput="setModelMessagesSearch(this.value)"
+          >
+          <button type="button" class="btn btn-primary btn-sm" onclick="clearModelMessagesSearch()">
+            <i class="fas fa-xmark"></i> Clear
+          </button>
+        </div>
 
         <div class="table-wrap">
           <table id="modelMessagesTable">
@@ -772,6 +815,7 @@
     const MAX_PROXIES_PER_ACCOUNT = 5;
     const ACCOUNTS_PAGE_SIZE = 10;
     const MODEL_MESSAGES_PAGE_SIZE = 10;
+    const ACTIVITY_PAGE_SIZE = 10;
 
     let globalAccounts = [];
     let globalModels = [];
@@ -801,6 +845,10 @@
     let lastKnownBotStatus = 'idle';
     let accountsPage = 1;
     let modelMessagesPage = 1;
+    let employeeActivityPage = 1;
+    let allActivityPage = 1;
+    let accountsSearchQuery = '';
+    let modelMessagesSearchQuery = '';
 
     // ── UI Navigation ──
     function switchTab(tabId, buttonEl) {
@@ -1113,6 +1161,46 @@
       renderAccounts();
     }
 
+    function normalizeSearchQuery(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
+    function setAccountsSearch(rawValue) {
+      syncAccountsFromDom();
+      accountsSearchQuery = String(rawValue || '');
+      accountsPage = 1;
+      renderAccounts();
+    }
+
+    function clearAccountsSearch() {
+      const input = document.getElementById('accountsSearchInput');
+      if (input) input.value = '';
+      setAccountsSearch('');
+    }
+
+    function setModelMessagesSearch(rawValue) {
+      syncModelMessagesFromDom();
+      modelMessagesSearchQuery = String(rawValue || '');
+      modelMessagesPage = 1;
+      renderModelMessages();
+    }
+
+    function clearModelMessagesSearch() {
+      const input = document.getElementById('modelMessagesSearchInput');
+      if (input) input.value = '';
+      setModelMessagesSearch('');
+    }
+
+    function setEmployeeActivityPage(nextPage) {
+      employeeActivityPage = Number(nextPage) || 1;
+      renderEmployeeActivity();
+    }
+
+    function setAllActivityPage(nextPage) {
+      allActivityPage = Number(nextPage) || 1;
+      renderAllActivity();
+    }
+
     function renderAccountsOwnerTabs() {
       const tabsEl = document.getElementById('accountsOwnerTabs');
       if (!tabsEl) {
@@ -1324,18 +1412,30 @@
     function renderEmployeeActivity() {
       const tbody = document.querySelector('#employeeActivityTable tbody');
       if (!tbody) return;
+      const paginationId = 'employeeActivityPagination';
 
       if (!globalIsMaster) {
         tbody.innerHTML = '';
+        employeeActivityPage = 1;
+        renderPagination(paginationId, 1, 1, 0, 'setEmployeeActivityPage', ACTIVITY_PAGE_SIZE);
         return;
       }
 
-      if (!globalEmployeeActivity.length) {
+      const rows = Array.isArray(globalEmployeeActivity) ? globalEmployeeActivity : [];
+      if (!rows.length) {
         tbody.innerHTML = '<tr><td colspan="5" style="color: var(--text-muted); font-size:0.85rem;">No employee activity yet.</td></tr>';
+        employeeActivityPage = 1;
+        renderPagination(paginationId, 1, 1, 0, 'setEmployeeActivityPage', ACTIVITY_PAGE_SIZE);
         return;
       }
 
-      tbody.innerHTML = globalEmployeeActivity.map(item => {
+      const totalRows = rows.length;
+      const totalPages = Math.max(1, Math.ceil(totalRows / ACTIVITY_PAGE_SIZE));
+      employeeActivityPage = clampPageNumber(employeeActivityPage, totalPages);
+      const startOffset = (employeeActivityPage - 1) * ACTIVITY_PAGE_SIZE;
+      const pageRows = rows.slice(startOffset, startOffset + ACTIVITY_PAGE_SIZE);
+
+      tbody.innerHTML = pageRows.map(item => {
         const when = escapeHtml(formatActivityTime(item.created_at));
         const actor = escapeHtml(item.actor_username || '-');
         const action = escapeHtml(String(item.action || '-').replace(/_/g, ' '));
@@ -1353,16 +1453,21 @@
           </tr>
         `;
       }).join('');
+
+      renderPagination(paginationId, employeeActivityPage, totalPages, totalRows, 'setEmployeeActivityPage', ACTIVITY_PAGE_SIZE);
     }
 
     function renderAllActivity() {
       const detailTbody = document.querySelector('#allActivityTable tbody');
       const dayTbody = document.querySelector('#allActivityByDayTable tbody');
       if (!detailTbody || !dayTbody) return;
+      const paginationId = 'allActivityPagination';
 
       if (!globalIsMaster) {
         detailTbody.innerHTML = '';
         dayTbody.innerHTML = '';
+        allActivityPage = 1;
+        renderPagination(paginationId, 1, 1, 0, 'setAllActivityPage', ACTIVITY_PAGE_SIZE);
         return;
       }
 
@@ -1382,12 +1487,21 @@
         }).join('');
       }
 
-      if (!Array.isArray(globalAllActivity) || !globalAllActivity.length) {
+      const detailRows = Array.isArray(globalAllActivity) ? globalAllActivity : [];
+      if (!detailRows.length) {
         detailTbody.innerHTML = '<tr><td colspan="7" style="color: var(--text-muted); font-size:0.85rem;">No activity in the last 24 hours.</td></tr>';
+        allActivityPage = 1;
+        renderPagination(paginationId, 1, 1, 0, 'setAllActivityPage', ACTIVITY_PAGE_SIZE);
         return;
       }
 
-      detailTbody.innerHTML = globalAllActivity.map(item => {
+      const totalRows = detailRows.length;
+      const totalPages = Math.max(1, Math.ceil(totalRows / ACTIVITY_PAGE_SIZE));
+      allActivityPage = clampPageNumber(allActivityPage, totalPages);
+      const startOffset = (allActivityPage - 1) * ACTIVITY_PAGE_SIZE;
+      const pageRows = detailRows.slice(startOffset, startOffset + ACTIVITY_PAGE_SIZE);
+
+      detailTbody.innerHTML = pageRows.map(item => {
         const when = escapeHtml(formatActivityTime(item.created_at));
         const day = escapeHtml(formatActivityDay(item.created_at));
         const actor = escapeHtml(item.actor_username || '-');
@@ -1409,6 +1523,8 @@
           </tr>
         `;
       }).join('');
+
+      renderPagination(paginationId, allActivityPage, totalPages, totalRows, 'setAllActivityPage', ACTIVITY_PAGE_SIZE);
     }
 
     async function loadEmployeeActivity() {
@@ -1631,8 +1747,15 @@
       const visibleIndexes = [];
       const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
       const employeeTabKey = activeAccountOwnerTab || myOwnerKey;
+      const accountSearch = normalizeSearchQuery(accountsSearchQuery);
       globalAccounts.forEach((acc, idx) => {
         const ownerKey = normalizeOwnerKey(acc.owner_username || 'master');
+        const usernameKey = String(acc.username || '').trim().toLowerCase();
+
+        if (accountSearch && !usernameKey.includes(accountSearch)) {
+          return;
+        }
+
         if (!globalIsMaster) {
           if (ownerKey === employeeTabKey) {
             visibleIndexes.push(idx);
@@ -1647,9 +1770,12 @@
 
       if (!visibleIndexes.length) {
         const cols = globalIsMaster ? 10 : 9;
-        const message = (globalIsMaster && activeAccountOwnerTab !== 'all')
-          ? 'No accounts for this employee yet.'
-          : 'No accounts added yet.';
+        const searchText = String(accountsSearchQuery || '').trim();
+        const message = searchText
+          ? `No accounts match username "${escapeHtml(searchText)}".`
+          : ((globalIsMaster && activeAccountOwnerTab !== 'all')
+              ? 'No accounts for this employee yet.'
+              : 'No accounts added yet.');
         tbody.innerHTML = `<tr><td colspan="${cols}" style="color: var(--text-muted); font-size:0.85rem;">${message}</td></tr>`;
         accountsPage = 1;
         renderPagination('accountsPagination', 1, 1, 0, 'setAccountsPage', ACCOUNTS_PAGE_SIZE);
@@ -2187,6 +2313,7 @@
       tbody.innerHTML = '';
       const showMetaCol = globalIsMaster;
       const columnCount = showMetaCol ? 4 : 3;
+      const messageSearch = normalizeSearchQuery(modelMessagesSearchQuery);
 
       if (!globalModelMessages.length) {
         tbody.innerHTML = `
@@ -2201,14 +2328,37 @@
         return;
       }
 
-      const totalRows = globalModelMessages.length;
+      const visibleIndexes = [];
+      globalModelMessages.forEach((entry, idx) => {
+        const modelName = String(entry.model || '').trim().replace(/^@+/, '').toLowerCase();
+        if (messageSearch && !modelName.includes(messageSearch)) {
+          return;
+        }
+        visibleIndexes.push(idx);
+      });
+
+      if (!visibleIndexes.length) {
+        const searchText = String(modelMessagesSearchQuery || '').trim();
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="${columnCount}" style="color: var(--text-muted); font-size: 0.85rem;">
+              No target message sets match username "${escapeHtml(searchText)}".
+            </td>
+          </tr>
+        `;
+        modelMessagesPage = 1;
+        renderPagination('modelMessagesPagination', 1, 1, 0, 'setModelMessagesPage', MODEL_MESSAGES_PAGE_SIZE);
+        return;
+      }
+
+      const totalRows = visibleIndexes.length;
       const totalPages = Math.max(1, Math.ceil(totalRows / MODEL_MESSAGES_PAGE_SIZE));
       modelMessagesPage = clampPageNumber(modelMessagesPage, totalPages);
       const startOffset = (modelMessagesPage - 1) * MODEL_MESSAGES_PAGE_SIZE;
-      const pageEntries = globalModelMessages.slice(startOffset, startOffset + MODEL_MESSAGES_PAGE_SIZE);
+      const pageIndexes = visibleIndexes.slice(startOffset, startOffset + MODEL_MESSAGES_PAGE_SIZE);
 
-      pageEntries.forEach((entry, localIdx) => {
-        const i = startOffset + localIdx;
+      pageIndexes.forEach((i) => {
+        const entry = globalModelMessages[i];
         const safeModel = escapeHtml(entry.model || '');
         const safeMessages = escapeHtml((entry.messages || []).join('\n'));
         const safeMeta = escapeHtml(formatModelMessageMeta(entry.model || ''));
