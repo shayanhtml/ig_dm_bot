@@ -314,6 +314,40 @@ def _normalize_model_message_map(raw_map) -> dict:
     return normalized
 
 
+def _normalize_model_automation_map(raw_map) -> dict:
+    """Normalize MODEL_AUTOMATION_MAP from settings into {model_key: bool} format."""
+    if not isinstance(raw_map, dict):
+        return {}
+
+    normalized = {}
+    for raw_model, raw_enabled in raw_map.items():
+        model_key = _normalize_model_key(raw_model)
+        if not model_key:
+            continue
+
+        if isinstance(raw_enabled, bool):
+            normalized[model_key] = raw_enabled
+            continue
+
+        if raw_enabled is None:
+            normalized[model_key] = True
+            continue
+
+        if isinstance(raw_enabled, (int, float)):
+            normalized[model_key] = int(raw_enabled) != 0
+            continue
+
+        text = str(raw_enabled).strip().lower()
+        if text in ("0", "false", "off", "no", "disable", "disabled"):
+            normalized[model_key] = False
+        elif text in ("", "none", "null"):
+            normalized[model_key] = True
+        else:
+            normalized[model_key] = True
+
+    return normalized
+
+
 def _messages_for_model(model_username: str, default_messages: list, model_message_map: dict) -> list:
     """Return custom messages for a model when available, otherwise global defaults."""
     custom_messages = model_message_map.get(_normalize_model_key(model_username), [])
@@ -341,10 +375,23 @@ def run_bot(stop_event=None, account_owner=None):
         model_message_map = _normalize_model_message_map(
             database.get_setting("MODEL_MESSAGE_MAP") or {}
         )
+        model_automation_map = _normalize_model_automation_map(
+            database.get_setting("MODEL_AUTOMATION_MAP") or {}
+        )
 
         # If explicit model list is empty, derive targets from model-specific sets.
         if not models and model_message_map:
             models = sorted(model_message_map.keys())
+
+        disabled_models = []
+        enabled_models = []
+        for model_name in models:
+            model_key = _normalize_model_key(model_name)
+            if model_key and not bool(model_automation_map.get(model_key, True)):
+                disabled_models.append(str(model_name or "").strip().lstrip("@") or model_key)
+                continue
+            enabled_models.append(model_name)
+        models = enabled_models
     except Exception as e:
         logger.error(f"Failed to load config from database: {e}")
         return
@@ -365,18 +412,22 @@ def run_bot(stop_event=None, account_owner=None):
             logger.error("No automation-enabled accounts configured")
         return
     if not models:
-        logger.error("No models configured in database")
+        logger.error("No automation-enabled models configured in database")
         return
     if not messages and not model_message_map:
         logger.error("No messages configured (general or model-specific)")
         return
 
     logger.info(
-        f"Loaded {len(accounts)} active accounts, {len(models)} models, "
+        f"Loaded {len(accounts)} active accounts, {len(models)} active models, "
         f"{len(messages)} general messages, {len(model_message_map)} model-specific sets"
     )
     if disabled_accounts:
         logger.info(f"Automation disabled for {len(disabled_accounts)} account(s)")
+    if disabled_models:
+        preview = ", ".join(f"@{str(model or '').strip().lstrip('@')}" for model in disabled_models[:20])
+        suffix = " ..." if len(disabled_models) > 20 else ""
+        logger.info(f"Automation disabled for {len(disabled_models)} model target(s): {preview}{suffix}")
     if account_owner:
         logger.info(f"Account scope: employee @{account_owner}")
 

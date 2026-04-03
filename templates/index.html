@@ -557,6 +557,7 @@
                 <th style="width: 220px;">Model Username</th>
                 <th>Custom Messages (One Per Line)</th>
                 <th id="modelMessageMetaHeader" style="width: 220px; display:none;">Updated By</th>
+                <th style="width: 90px;">Automation</th>
                 <th style="width: 100px;">Action</th>
               </tr>
             </thead>
@@ -1244,6 +1245,31 @@
       return String(raw || '').split('\n').map(x => x.trim()).filter(x => x);
     }
 
+    function normalizeBooleanFlag(rawValue, defaultValue = true) {
+      if (typeof rawValue === 'boolean') {
+        return rawValue;
+      }
+      if (rawValue === null || rawValue === undefined) {
+        return !!defaultValue;
+      }
+      if (typeof rawValue === 'number') {
+        return Number(rawValue) !== 0;
+      }
+
+      const text = String(rawValue).trim().toLowerCase();
+      if (['', 'none', 'null'].includes(text)) {
+        return !!defaultValue;
+      }
+      if (['0', 'false', 'off', 'no', 'disable', 'disabled'].includes(text)) {
+        return false;
+      }
+      if (['1', 'true', 'on', 'yes', 'enable', 'enabled'].includes(text)) {
+        return true;
+      }
+
+      return !!defaultValue;
+    }
+
     function canManageTargets() {
       const role = String(globalCurrentUser.role || '').toLowerCase();
       return role === 'master' || role === 'employee';
@@ -1702,15 +1728,24 @@
         }
 
         const rawModelMap = globalSettings.MODEL_MESSAGE_MAP || {};
+        const rawModelAutomationMap = globalSettings.MODEL_AUTOMATION_MAP || {};
+        const modelAutomationMap = (rawModelAutomationMap && typeof rawModelAutomationMap === 'object' && !Array.isArray(rawModelAutomationMap))
+          ? rawModelAutomationMap
+          : {};
         if (rawModelMap && typeof rawModelMap === 'object' && !Array.isArray(rawModelMap)) {
           Object.keys(rawModelMap).forEach(modelKey => {
             const cleanModel = String(modelKey || '').trim().replace(/^@+/, '');
+            const normalizedModelKey = normalizeModelKey(cleanModel);
             const cleanMessages = Array.isArray(rawModelMap[modelKey])
               ? rawModelMap[modelKey].map(x => String(x || '').trim()).filter(x => x)
               : [];
 
             if (cleanModel && cleanMessages.length) {
-              globalModelMessages.push({ model: cleanModel, messages: cleanMessages });
+              globalModelMessages.push({
+                model: cleanModel,
+                messages: cleanMessages,
+                automation_enabled: normalizeBooleanFlag(modelAutomationMap[normalizedModelKey], true),
+              });
             }
           });
 
@@ -2312,7 +2347,8 @@
 
       tbody.innerHTML = '';
       const showMetaCol = globalIsMaster;
-      const columnCount = showMetaCol ? 4 : 3;
+      const canEditRows = canManageTargets();
+      const columnCount = showMetaCol ? 5 : 4;
       const messageSearch = normalizeSearchQuery(modelMessagesSearchQuery);
 
       if (!globalModelMessages.length) {
@@ -2359,11 +2395,16 @@
 
       pageIndexes.forEach((i) => {
         const entry = globalModelMessages[i];
+        const automationEnabled = entry.automation_enabled !== false;
         const safeModel = escapeHtml(entry.model || '');
         const safeMessages = escapeHtml((entry.messages || []).join('\n'));
         const safeMeta = escapeHtml(formatModelMessageMeta(entry.model || ''));
+        const rowStyle = automationEnabled ? '' : 'opacity:0.72;';
+        const automationCell = canEditRows
+          ? `<button class="automation-toggle ${automationEnabled ? '' : 'is-disabled'}" title="${automationEnabled ? 'Automation enabled (click to disable)' : 'Automation disabled (click to enable)'}" onclick="toggleModelAutomation(${i})"><i class="fas ${automationEnabled ? 'fa-eye' : 'fa-eye-slash'}"></i></button>`
+          : `<span class="automation-indicator-readonly ${automationEnabled ? '' : 'is-disabled'}" title="${automationEnabled ? 'Automation enabled' : 'Automation disabled'}"><i class="fas ${automationEnabled ? 'fa-eye' : 'fa-eye-slash'}"></i></span>`;
         tbody.innerHTML += `
-          <tr>
+          <tr style="${rowStyle}">
             <td>
               <input type="text" id="mm_model_${i}" list="modelsDatalist" value="${safeModel}" placeholder="alice">
             </td>
@@ -2371,6 +2412,7 @@
               <textarea id="mm_msgs_${i}" rows="4" placeholder="One line per message">${safeMessages}</textarea>
             </td>
             ${showMetaCol ? `<td style="font-size: 0.82rem; color: var(--text-muted);">${safeMeta}</td>` : ''}
+            <td>${automationCell}</td>
             <td>
               <button class="btn btn-danger btn-sm" title="Delete Set" onclick="removeModelMessageRow(${i})"><i class="fas fa-trash"></i></button>
             </td>
@@ -2393,6 +2435,9 @@
         const msgInput = document.getElementById(`mm_msgs_${i}`);
         if (modelInput) entry.model = modelInput.value;
         if (msgInput) entry.messages = parseMessageLines(msgInput.value);
+        if (typeof entry.automation_enabled !== 'boolean') {
+          entry.automation_enabled = true;
+        }
       });
     }
 
@@ -2403,9 +2448,29 @@
       }
 
       syncModelMessagesFromDom();
-      globalModelMessages.push({ model: '', messages: [] });
+      globalModelMessages.push({ model: '', messages: [], automation_enabled: true });
       modelMessagesPage = Number.MAX_SAFE_INTEGER;
       renderModelMessages();
+    }
+
+    function toggleModelAutomation(idx) {
+      if (!canManageTargets()) {
+        showError('You do not have permission to edit targets and messages');
+        return;
+      }
+
+      syncModelMessagesFromDom();
+      const row = globalModelMessages[idx] || null;
+      if (!row) {
+        return;
+      }
+
+      row.automation_enabled = !(row.automation_enabled !== false);
+      renderModelMessages();
+
+      const stateLabel = row.automation_enabled !== false ? 'enabled' : 'disabled';
+      const displayModel = String(row.model || '').trim() || `row ${idx + 1}`;
+      showToast(`Target automation ${stateLabel} for ${displayModel}. Click Save Targets & Messages to apply.`);
     }
 
     function removeModelMessageRow(idx) {
@@ -2429,6 +2494,7 @@
 
       const normalizedRows = [];
       const modelMessageMap = {};
+      const modelAutomationMap = {};
 
       globalModelMessages.forEach(entry => {
         const cleanModel = String(entry.model || '').trim().replace(/^@+/, '');
@@ -2441,8 +2507,14 @@
           return;
         }
 
-        normalizedRows.push({ model: cleanModel, messages: cleanMessages });
+        const automationEnabled = entry.automation_enabled !== false;
+        normalizedRows.push({
+          model: cleanModel,
+          messages: cleanMessages,
+          automation_enabled: automationEnabled,
+        });
         modelMessageMap[modelKey] = cleanMessages;
+        modelAutomationMap[modelKey] = automationEnabled;
       });
 
       globalModelMessages = normalizedRows;
@@ -2462,6 +2534,7 @@
       globalModelMessageMeta = nextModelMeta;
       globalSettings.MODEL_MESSAGE_MAP = modelMessageMap;
       globalSettings.MODEL_MESSAGE_META = globalModelMessageMeta;
+      globalSettings.MODEL_AUTOMATION_MAP = modelAutomationMap;
 
       try {
         await apiJson('/api/config/models', {
@@ -2473,7 +2546,10 @@
         const mapResponse = await apiJson('/api/config/model_message_map', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(modelMessageMap)
+          body: JSON.stringify({
+            model_message_map: modelMessageMap,
+            model_automation_map: modelAutomationMap,
+          })
         });
 
         const responseMeta = mapResponse.model_message_meta;
@@ -2497,6 +2573,27 @@
           });
           globalModelMessageMeta = cleanMeta;
           globalSettings.MODEL_MESSAGE_META = cleanMeta;
+        }
+
+        const responseAutomationRaw = mapResponse.model_automation_map;
+        if (responseAutomationRaw && typeof responseAutomationRaw === 'object' && !Array.isArray(responseAutomationRaw)) {
+          const cleanAutomationMap = {};
+          Object.keys(responseAutomationRaw).forEach(modelKey => {
+            const key = normalizeModelKey(modelKey);
+            if (!key) {
+              return;
+            }
+            cleanAutomationMap[key] = normalizeBooleanFlag(responseAutomationRaw[modelKey], true);
+          });
+
+          globalSettings.MODEL_AUTOMATION_MAP = cleanAutomationMap;
+          globalModelMessages = globalModelMessages.map(entry => {
+            const key = normalizeModelKey(entry.model || '');
+            return {
+              ...entry,
+              automation_enabled: normalizeBooleanFlag(cleanAutomationMap[key], true),
+            };
+          });
         }
 
         renderModelsDatalist();

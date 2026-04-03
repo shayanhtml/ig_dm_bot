@@ -833,6 +833,22 @@ def api_save_config(target):
                 return jsonify({"success": False, "error": "Not allowed to update model-specific messages"}), 403
             if not isinstance(payload, dict):
                 return jsonify({"success": False, "error": "MODEL_MESSAGE_MAP payload must be an object"}), 400
+
+            # Backward-compatible payload support:
+            # 1) legacy: {"model": ["msg1", ...]}
+            # 2) current: {"model_message_map": {...}, "model_automation_map": {...}}
+            if "model_message_map" in payload or "model_automation_map" in payload:
+                raw_payload_model_map = payload.get("model_message_map", {})
+                raw_payload_automation_map = payload.get("model_automation_map", {})
+            else:
+                raw_payload_model_map = payload
+                raw_payload_automation_map = {}
+
+            if not isinstance(raw_payload_model_map, dict):
+                return jsonify({"success": False, "error": "model_message_map must be an object"}), 400
+            if not isinstance(raw_payload_automation_map, dict):
+                return jsonify({"success": False, "error": "model_automation_map must be an object"}), 400
+
             actor_username = str(user_ctx.get("username") or "unknown")
             now_iso = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
 
@@ -842,8 +858,24 @@ def api_save_config(target):
             raw_existing_meta = existing_settings.get("MODEL_MESSAGE_META", {})
             existing_meta = raw_existing_meta if isinstance(raw_existing_meta, dict) else {}
 
+            raw_existing_automation_map = existing_settings.get("MODEL_AUTOMATION_MAP", {})
+            existing_automation_map = {}
+            if isinstance(raw_existing_automation_map, dict):
+                for raw_model, raw_enabled in raw_existing_automation_map.items():
+                    model_key = str(raw_model or "").strip().lstrip("@").lower()
+                    if not model_key:
+                        continue
+                    existing_automation_map[model_key] = _normalize_bool_flag(raw_enabled, default=True)
+
+            payload_automation_map = {}
+            for raw_model, raw_enabled in raw_payload_automation_map.items():
+                model_key = str(raw_model or "").strip().lstrip("@").lower()
+                if not model_key:
+                    continue
+                payload_automation_map[model_key] = _normalize_bool_flag(raw_enabled, default=True)
+
             normalized_map = {}
-            for raw_model, raw_messages in payload.items():
+            for raw_model, raw_messages in raw_payload_model_map.items():
                 model_key = str(raw_model or "").strip().lstrip("@").lower()
                 if not model_key or not isinstance(raw_messages, list):
                     continue
@@ -853,6 +885,15 @@ def api_save_config(target):
                     continue
 
                 normalized_map[model_key] = clean_messages
+
+            normalized_automation_map = {}
+            for model_key in normalized_map.keys():
+                if model_key in payload_automation_map:
+                    normalized_automation_map[model_key] = payload_automation_map[model_key]
+                elif model_key in existing_automation_map:
+                    normalized_automation_map[model_key] = existing_automation_map[model_key]
+                else:
+                    normalized_automation_map[model_key] = True
 
             model_meta = {}
             total_messages = 0
@@ -892,6 +933,7 @@ def api_save_config(target):
             database.save_settings({
                 "MODEL_MESSAGE_MAP": normalized_map,
                 "MODEL_MESSAGE_META": model_meta,
+                "MODEL_AUTOMATION_MAP": normalized_automation_map,
             })
             _log_actor_action(
                 "update_model_message_map",
@@ -900,14 +942,16 @@ def api_save_config(target):
                 details={
                     "model_entry_count": len(model_names),
                     "message_count": total_messages,
+                    "disabled_model_count": sum(1 for v in normalized_automation_map.values() if not bool(v)),
                     "model_names": ", ".join(model_names[:10]) + (" ..." if len(model_names) > 10 else ""),
                 },
-                    employees_only=False,
+                employees_only=False,
             )
             return jsonify({
                 "success": True,
                 "model_message_map": normalized_map,
                 "model_message_meta": model_meta,
+                "model_automation_map": normalized_automation_map,
             })
         else:
             return jsonify({"success": False, "error": "Invalid target"}), 400
