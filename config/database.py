@@ -577,11 +577,32 @@ def save_accounts(accounts_list, owner_username: str = None, include_all: bool =
     conn = _get_connection()
     try:
         if include_all:
+            previous_rows = conn.execute("SELECT username FROM accounts").fetchall()
+            clean_owner = ""
+        else:
+            clean_owner = str(owner_username or "").strip().lower()
+            if not clean_owner:
+                raise ValueError("Owner username is required")
+            previous_rows = conn.execute(
+                "SELECT username FROM accounts WHERE owner_username = ?",
+                (clean_owner,),
+            ).fetchall()
+
+        previous_username_keys = set()
+        for row in previous_rows:
+            username = str(row["username"] or "").strip().lower()
+            if username:
+                previous_username_keys.add(username)
+
+        incoming_username_keys = set()
+
+        if include_all:
             conn.execute("DELETE FROM accounts")
             for acc in accounts_list:
                 username = str(acc.get("username", "")).strip()
                 if not username:
                     continue
+                incoming_username_keys.add(username.lower())
                 password = str(acc.get("password", "")).strip() or None
                 owner = str(acc.get("owner_username") or acc.get("owner") or "master").strip().lower()
                 owner = owner or "master"
@@ -600,15 +621,12 @@ def save_accounts(accounts_list, owner_username: str = None, include_all: bool =
                     (username, password, owner, model_label, custom_messages_json, proxy, profile_note, automation_enabled),
                 )
         else:
-            clean_owner = str(owner_username or "").strip().lower()
-            if not clean_owner:
-                raise ValueError("Owner username is required")
-
             conn.execute("DELETE FROM accounts WHERE owner_username = ?", (clean_owner,))
             for acc in accounts_list:
                 username = str(acc.get("username", "")).strip()
                 if not username:
                     continue
+                incoming_username_keys.add(username.lower())
                 password = str(acc.get("password", "")).strip() or None
                 model_label = _normalize_account_model_label(acc.get("model_label", ""))
                 custom_messages_json = json.dumps(
@@ -624,6 +642,10 @@ def save_accounts(accounts_list, owner_username: str = None, include_all: bool =
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     (username, password, clean_owner, model_label, custom_messages_json, proxy, profile_note, automation_enabled),
                 )
+
+        removed_username_keys = previous_username_keys - incoming_username_keys
+        for username_key in removed_username_keys:
+            conn.execute("DELETE FROM cookies WHERE LOWER(username) = ?", (username_key,))
 
         conn.commit()
     except sqlite3.IntegrityError:

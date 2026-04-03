@@ -1,11 +1,10 @@
 """
-Browser factory using undetected-chromedriver to avoid Instagram's bot detection.
+Browser factory using standard Selenium Chrome driver sessions.
 """
 import random
 import subprocess
 import re
 import logging
-import ssl
 import base64
 import os
 import time
@@ -19,16 +18,15 @@ import socketserver
 import select
 import threading
 from urllib.parse import urlsplit, unquote
-import undetected_chromedriver as uc
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+
+try:
+    from webdriver_manager.chrome import ChromeDriverManager
+except Exception:
+    ChromeDriverManager = None
 
 logger = logging.getLogger("model_dm_bot")
-
-# Global SSL Monkey-Patch: heavily bypasses SSL CERTIFICATE_VERIFY_FAILED 
-# meaning undetected-chromedriver can freely download its bin on missing-cert servers.
-try:
-    ssl._create_default_https_context = ssl._create_unverified_context
-except AttributeError:
-    pass
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
@@ -653,15 +651,12 @@ def _mask_proxy_for_log(proxy_server: str) -> str:
 
 def create_driver(headless=False, proxy=None):
     """
-    Create an undetected Chrome browser instance with anti-detection measures.
-    Auto-detects Chrome version to avoid driver mismatch.
-    
-    Returns:
-        uc.Chrome: Configured undetected Chrome driver
-    """
-    chrome_version = _detect_chrome_version()
+    Create a standard Selenium Chrome browser instance.
 
-    options = uc.ChromeOptions()
+    Returns:
+        selenium.webdriver.Chrome: Configured Chrome driver
+    """
+    options = webdriver.ChromeOptions()
     options.add_argument("--start-maximized")
     options.add_argument("--disable-popup-blocking")
     options.add_argument("--disable-notifications")
@@ -706,11 +701,18 @@ def create_driver(headless=False, proxy=None):
         options.add_argument("--headless=new")
 
     try:
-        driver = uc.Chrome(
-            options=options,
-            use_subprocess=True,
-            version_main=chrome_version,
-        )
+        try:
+            # Prefer Selenium's built-in driver resolution (Selenium Manager).
+            driver = webdriver.Chrome(options=options)
+        except Exception as primary_exc:
+            logger.warning(
+                "[Browser] Default Chrome driver launch failed; falling back to webdriver-manager: %s",
+                primary_exc,
+            )
+            if ChromeDriverManager is None:
+                raise
+            service = Service(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=options)
     except Exception:
         if local_tunnel_server is not None:
             try:
