@@ -145,6 +145,11 @@
       background: rgba(255, 255, 255, 0.06);
       color: #bcbcbc;
     }
+    .automation-toggle:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
     .automation-indicator-readonly {
       display: inline-flex;
       align-items: center;
@@ -330,8 +335,14 @@
     }
     .label-accordion-actions {
       display: flex;
+      align-items: center;
+      gap: 0.5rem;
       justify-content: flex-end;
       margin-bottom: 0.75rem;
+    }
+    .label-automation-toggle {
+      width: 34px;
+      height: 34px;
     }
     .accounts-group-table {
       margin-bottom: 0;
@@ -2517,6 +2528,26 @@
         const encodedKey = encodeURIComponent(group.key);
         const encodedLabel = encodeURIComponent(group.value || '');
         const encodedDisplay = encodeURIComponent(group.display || '');
+        const editableLabelIndexes = group.indexes.filter(idx => {
+          const row = globalAccounts[idx] || null;
+          if (!row) {
+            return false;
+          }
+          if (globalIsMaster) {
+            return true;
+          }
+          const rowOwnerKey = normalizeOwnerKey(row.owner_username || 'master');
+          return !row.shared_readonly && rowOwnerKey === myOwnerKey;
+        });
+        const hasEditableLabelAccounts = editableLabelIndexes.length > 0;
+        const allLabelAutomationEnabled = hasEditableLabelAccounts
+          && editableLabelIndexes.every(idx => globalAccounts[idx].automation_enabled !== false);
+        const labelAutomationTitle = hasEditableLabelAccounts
+          ? (allLabelAutomationEnabled
+              ? 'Disable automation for all accounts in this label'
+              : 'Enable automation for all accounts in this label')
+          : 'No editable accounts in this label';
+        const labelAutomationControl = `<button class="automation-toggle label-automation-toggle ${allLabelAutomationEnabled ? '' : 'is-disabled'}" type="button" title="${labelAutomationTitle}" aria-label="${labelAutomationTitle}" onclick="toggleLabelAutomationByKey(decodeURIComponent('${encodedKey}'))" ${hasEditableLabelAccounts ? '' : 'disabled'}><i class="fas ${allLabelAutomationEnabled ? 'fa-eye' : 'fa-eye-slash'}"></i></button>`;
         const editLabelControl = `<span class="label-title-edit" title="Edit label name" onclick="event.stopPropagation(); openEditLabelModal(decodeURIComponent('${encodedKey}'), decodeURIComponent('${encodedDisplay}'));"><i class="fas fa-pen" style="margin-right:0.3rem;"></i>Edit</span>`;
         const rowsHtml = group.indexes.length
           ? group.indexes.map(idx => renderAccountRowByIndex(idx, myOwnerKey)).join('')
@@ -2531,6 +2562,7 @@
             </button>
             <div class="label-accordion-body">
               <div class="label-accordion-actions">
+                ${labelAutomationControl}
                 <button class="btn btn-primary btn-sm" type="button" onclick="addAccountRowByLabel(decodeURIComponent('${encodedLabel}'))"><i class="fas fa-plus"></i> Add Account</button>
               </div>
               <div class="table-wrap">
@@ -2623,6 +2655,52 @@
       const stateLabel = row.automation_enabled !== false ? 'enabled' : 'disabled';
       const displayUser = String(row.username || '').trim() || `row ${idx + 1}`;
       showToast(`Automation ${stateLabel} for ${displayUser}. Click Save Accounts to apply.`);
+    }
+
+    function toggleLabelAutomationByKey(labelKey) {
+      syncAccountsFromDom();
+      const labelMeta = normalizeAccountLabelGroup(labelKey || '');
+      const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
+      const { visibleIndexes } = collectVisibleAccountIndexes();
+
+      const labelIndexes = visibleIndexes.filter(idx => {
+        const row = globalAccounts[idx] || {};
+        return normalizeAccountLabelGroup(row.model_label || '').key === labelMeta.key;
+      });
+
+      if (!labelIndexes.length) {
+        showError('No accounts found under this label in the current view.');
+        return;
+      }
+
+      const editableIndexes = labelIndexes.filter(idx => {
+        const row = globalAccounts[idx] || null;
+        if (!row) {
+          return false;
+        }
+        if (globalIsMaster) {
+          return true;
+        }
+        const rowOwnerKey = normalizeOwnerKey(row.owner_username || 'master');
+        return !row.shared_readonly && rowOwnerKey === myOwnerKey;
+      });
+
+      if (!editableIndexes.length) {
+        showError('No editable accounts under this label in the current view.');
+        return;
+      }
+
+      const hasDisabled = editableIndexes.some(idx => globalAccounts[idx].automation_enabled === false);
+      const nextEnabled = hasDisabled;
+
+      editableIndexes.forEach(idx => {
+        globalAccounts[idx].automation_enabled = nextEnabled;
+      });
+
+      renderAccounts();
+
+      const stateLabel = nextEnabled ? 'enabled' : 'disabled';
+      showToast(`Automation ${stateLabel} for ${editableIndexes.length} account(s) in ${labelMeta.display}. Click Save Accounts to apply.`);
     }
     
     function syncAccountsFromDom() {
