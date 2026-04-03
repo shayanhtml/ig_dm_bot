@@ -184,13 +184,14 @@ def login_with_cookies(driver, account: dict) -> bool:
     return False
 
 
-def login_with_credentials(driver, account: dict) -> bool:
+def login_with_credentials(driver, account: dict, persist_cookies: bool = True) -> bool:
     """
     Log into Instagram with username/password with human-like typing.
     
     Args:
         driver: WebDriver instance
         account: dict with 'username' and 'password' keys
+        persist_cookies: Whether to save a successful session for future reuse
     
     Returns:
         True if login was successful (may still need challenge handling)
@@ -289,7 +290,8 @@ def login_with_credentials(driver, account: dict) -> bool:
         # Check result
         if is_logged_in(driver):
             logger.info(f"[{username}] ✅ Credential login successful!")
-            save_cookies(driver, username)
+            if persist_cookies:
+                save_cookies(driver, username)
             return True
 
         # Check for challenges
