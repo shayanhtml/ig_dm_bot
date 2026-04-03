@@ -37,7 +37,29 @@ USER_AGENTS = [
 ]
 
 _TEMP_PROXY_EXTENSION_DIRS = []
+_TEMP_BROWSER_PROFILE_DIRS = []
 _LOCAL_PROXY_SERVERS = []
+
+
+def _safe_remove_dir(path: str, retries: int = 6, delay_seconds: float = 0.2):
+    target = str(path or "").strip()
+    if not target:
+        return
+
+    for _ in range(max(1, int(retries))):
+        try:
+            shutil.rmtree(target, ignore_errors=False)
+            return
+        except FileNotFoundError:
+            return
+        except Exception:
+            time.sleep(max(0.0, float(delay_seconds)))
+
+    # Last fallback should never raise.
+    try:
+        shutil.rmtree(target, ignore_errors=True)
+    except Exception:
+        pass
 
 
 def _cleanup_proxy_resources():
@@ -58,6 +80,10 @@ def _cleanup_proxy_resources():
             shutil.rmtree(folder, ignore_errors=True)
         except Exception:
             pass
+
+    while _TEMP_BROWSER_PROFILE_DIRS:
+        folder = _TEMP_BROWSER_PROFILE_DIRS.pop()
+        _safe_remove_dir(folder)
 
 
 atexit.register(_cleanup_proxy_resources)
@@ -639,7 +665,14 @@ def create_driver(headless=False, proxy=None):
     options.add_argument("--start-maximized")
     options.add_argument("--disable-popup-blocking")
     options.add_argument("--disable-notifications")
+    options.add_argument("--incognito")
     options.add_argument(f"--user-agent={random.choice(USER_AGENTS)}")
+
+    # Use a unique temporary Chrome user-data directory per driver so each
+    # browser session starts fully fresh (no carry-over cookies/storage).
+    temp_profile_dir = tempfile.mkdtemp(prefix="ig_chrome_profile_")
+    _TEMP_BROWSER_PROFILE_DIRS.append(temp_profile_dir)
+    options.add_argument(f"--user-data-dir={temp_profile_dir}")
 
     proxy_config = _parse_proxy_config(proxy)
     proxy_server = _proxy_server_from_config(proxy_config)
@@ -661,14 +694,37 @@ def create_driver(headless=False, proxy=None):
     if headless:
         options.add_argument("--headless=new")
 
-    driver = uc.Chrome(
-        options=options,
-        use_subprocess=True,
-        version_main=chrome_version,
-    )
+    try:
+        driver = uc.Chrome(
+            options=options,
+            use_subprocess=True,
+            version_main=chrome_version,
+        )
+    except Exception:
+        if local_tunnel_server is not None:
+            try:
+                local_tunnel_server.shutdown()
+            except Exception:
+                pass
+            try:
+                local_tunnel_server.server_close()
+            except Exception:
+                pass
+            try:
+                _LOCAL_PROXY_SERVERS.remove(local_tunnel_server)
+            except Exception:
+                pass
+
+        try:
+            _TEMP_BROWSER_PROFILE_DIRS.remove(temp_profile_dir)
+        except Exception:
+            pass
+        _safe_remove_dir(temp_profile_dir)
+        raise
 
     if local_tunnel_server is not None:
         setattr(driver, "_local_proxy_tunnel", local_tunnel_server)
+    setattr(driver, "_temp_user_data_dir", temp_profile_dir)
 
     # Additional stealth: override navigator properties
     driver.execute_script("""
@@ -692,6 +748,7 @@ def close_driver(driver):
         return
 
     tunnel = getattr(driver, "_local_proxy_tunnel", None)
+    temp_profile_dir = getattr(driver, "_temp_user_data_dir", None)
     if tunnel is not None:
         try:
             tunnel.shutdown()
@@ -718,3 +775,10 @@ def close_driver(driver):
         pass  # WinError 6: The handle is invalid — safe to ignore
     except Exception:
         pass
+
+    if temp_profile_dir:
+        try:
+            _TEMP_BROWSER_PROFILE_DIRS.remove(temp_profile_dir)
+        except Exception:
+            pass
+        _safe_remove_dir(temp_profile_dir)

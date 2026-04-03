@@ -16,9 +16,9 @@ from config.settings import LOGS_DIR
 from config import database
 from config.database import get_required_setting
 from core.browser import create_driver, close_driver, _mask_proxy_for_log
-from core.cookie_manager import delete_cookies
+from core.cookie_manager import save_cookies, refresh_cookies
 from core.auth import (
-    login_with_credentials,
+    login_with_cookies, login_with_credentials,
     detect_challenge, handle_two_factor,
     is_logged_in, human_delay, ChallengeType,
 )
@@ -61,24 +61,6 @@ def _interruptible_sleep(seconds: float, stop_event=None, tick: float = 0.5) -> 
         remaining = end_time - time.time()
         time.sleep(min(tick, max(0.0, remaining)))
     return False
-
-
-def _prepare_fresh_session(driver, username: str):
-    """Clear browser session artifacts before each account login attempt."""
-    try:
-        driver.get("https://www.instagram.com/")
-    except Exception:
-        pass
-
-    try:
-        driver.delete_all_cookies()
-    except Exception as e:
-        logger.debug(f"[{username}] Failed to clear browser cookies before login: {e}")
-
-    try:
-        driver.execute_script("window.localStorage.clear(); window.sessionStorage.clear();")
-    except Exception as e:
-        logger.debug(f"[{username}] Failed to clear browser storage before login: {e}")
 
 
 def _register_driver(driver):
@@ -627,6 +609,9 @@ def run_bot(stop_event=None, account_owner=None):
                     if _interruptible_sleep(delay, stop_event=stop_event):
                         break
 
+                # Refresh cookies after session
+                refresh_cookies(driver, username)
+
             except Exception as e:
                 if stop_event and stop_event.is_set() and _is_expected_driver_shutdown_error(e):
                     log_and_telegram(f"🛑 Stop requested while closing @{username} browser session")
@@ -675,22 +660,24 @@ def run_bot(stop_event=None, account_owner=None):
 
 def _perform_login(driver, account: dict) -> bool:
     """
-    Attempt login with a fresh browser session and credentials.
+    Attempt login: cookies first, then credentials, handle challenges.
     """
     username = account["username"]
 
-    # Enforce a clean browser state and wipe stored cookies before each login.
-    _prepare_fresh_session(driver, username)
-    try:
-        delete_cookies(username)
-    except Exception as e:
-        logger.debug(f"[{username}] Failed to clear stored cookies before login: {e}")
-    logger.info(f"[{username}] Fresh session enforced: no stored cookies reused")
-
-    if login_with_credentials(driver, account, persist_cookies=False):
+    # Try cookie login
+    if login_with_cookies(driver, account):
         return True
 
-    # Handle challenges raised during credential login.
+    # Check if cookie login failed because it hit a challenge
+    challenge = detect_challenge(driver)
+    if challenge != ChallengeType.NONE:
+        logger.warning(f"[{username}] Challenge detected after cookie injection, skipping credential login.")
+    else:
+        # Only try credential login if no challenge is blocking us
+        if login_with_credentials(driver, account):
+            return True
+        
+    # Final check for challenges (from either cookie or credential login)
     challenge = detect_challenge(driver)
 
     if challenge == ChallengeType.NONE:
@@ -719,6 +706,7 @@ def _perform_login(driver, account: dict) -> bool:
                         driver.refresh()
                         human_delay(3, 5)
                         if is_logged_in(driver):
+                            save_cookies(driver, username)
                             return True
             return False
         else:
@@ -734,6 +722,7 @@ def _perform_login(driver, account: dict) -> bool:
             driver.refresh()
             human_delay(3, 5)
             if is_logged_in(driver):
+                save_cookies(driver, username)
                 return True
         return False
 
