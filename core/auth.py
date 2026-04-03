@@ -241,19 +241,13 @@ def login_with_credentials(driver, account: dict) -> bool:
 
     # Accept cookies banner if present
     _accept_cookie_banner(driver)
+    _open_login_form_if_account_picker(driver, username)
 
     try:
         # Wait for login form
         logger.info(f"[{username}] Looking for login form...")
-        username_input = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='username'], input[name='email']"))
-        )
-        logger.info(f"[{username}] Found username field")
-
-        password_input = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='password'], input[name='pass']"))
-        )
-        logger.info(f"[{username}] Found password field")
+        username_input, password_input = _locate_login_form_inputs(driver, username)
+        logger.info(f"[{username}] Found login form fields")
 
         # Clear and type username
         username_input.clear()
@@ -440,6 +434,66 @@ def _accept_cookie_banner(driver):
             return
         except Exception:
             continue
+
+
+def _open_login_form_if_account_picker(driver, username: str = "") -> bool:
+    """Open the username/password login form when account-switcher UI is shown."""
+    chooser_xpaths = [
+        "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'use another profile')]",
+        "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'use another account')]",
+        "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'log into another account')]",
+        "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'switch accounts')]",
+        "//a[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'use another profile')]",
+        "//a[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'use another account')]",
+        "//div[@role='button' and contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'use another')]",
+    ]
+
+    for xpath in chooser_xpaths:
+        try:
+            elements = driver.find_elements(By.XPATH, xpath)
+        except Exception:
+            continue
+
+        for element in elements:
+            try:
+                if not element.is_displayed():
+                    continue
+                driver.execute_script("arguments[0].click();", element)
+                human_delay(1, 2)
+                if username:
+                    logger.info(f"[{username}] Opened login form from account picker")
+                else:
+                    logger.info("Opened login form from account picker")
+                return True
+            except Exception:
+                continue
+
+    return False
+
+
+def _locate_login_form_inputs(driver, username: str):
+    """Locate login form fields, retrying once after dismissing account picker UI."""
+    last_error = None
+    for attempt in range(2):
+        try:
+            timeout = 20 if attempt == 0 else 12
+            username_input = WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='username'], input[name='email']"))
+            )
+            password_input = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='password'], input[name='pass']"))
+            )
+            return username_input, password_input
+        except TimeoutException as exc:
+            last_error = exc
+            if attempt == 0 and _open_login_form_if_account_picker(driver, username):
+                continue
+            break
+
+    if last_error:
+        raise last_error
+
+    raise TimeoutException("Login form fields not found")
 
 
 def _dismiss_post_login_popups(driver):

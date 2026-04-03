@@ -666,7 +666,18 @@ def create_driver(headless=False, proxy=None):
     options.add_argument("--disable-popup-blocking")
     options.add_argument("--disable-notifications")
     options.add_argument("--incognito")
+    options.add_argument("--disable-sync")
+    options.add_argument("--disable-background-networking")
+    options.add_argument("--disable-features=PasswordManagerOnboarding,AutofillServerCommunication,AccountConsistency")
     options.add_argument(f"--user-agent={random.choice(USER_AGENTS)}")
+    options.add_experimental_option(
+        "prefs",
+        {
+            "credentials_enable_service": False,
+            "profile.password_manager_enabled": False,
+            "profile.default_content_setting_values.notifications": 2,
+        },
+    )
 
     # Use a unique temporary Chrome user-data directory per driver so each
     # browser session starts fully fresh (no carry-over cookies/storage).
