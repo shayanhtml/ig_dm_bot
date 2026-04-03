@@ -191,6 +191,10 @@
       flex-shrink: 0;
       padding: 0.45rem 0.58rem;
     }
+    .password-visibility-btn {
+      flex-shrink: 0;
+      padding: 0.45rem 0.58rem;
+    }
     .table-search-row {
       display: flex;
       align-items: center;
@@ -1010,7 +1014,7 @@
     let allActivityPage = 1;
     let accountsSearchQuery = '';
     let modelMessagesSearchQuery = '';
-    let activeAccountsLabelAccordion = 'generic';
+    let activeAccountsLabelAccordion = { generic: true };
     let activeRenameLabelKey = '';
     let activeRenameLabelScope = 'all';
 
@@ -1118,6 +1122,32 @@
       showToast(`Password copied for ${displayUser}.`);
     }
 
+    function toggleAccountPasswordVisibility(rowIndex) {
+      const idx = Number(rowIndex);
+      if (!Number.isInteger(idx) || idx < 0) {
+        return;
+      }
+
+      const passInput = document.getElementById(`acc_pass_${idx}`);
+      const toggleBtn = document.getElementById(`acc_pass_toggle_${idx}`);
+      if (!passInput || !toggleBtn) {
+        return;
+      }
+
+      const nextType = passInput.type === 'password' ? 'text' : 'password';
+      passInput.type = nextType;
+
+      const isVisible = nextType === 'text';
+      const nextTitle = isVisible ? 'Hide password' : 'Show password';
+      toggleBtn.title = nextTitle;
+      toggleBtn.setAttribute('aria-label', nextTitle);
+
+      const icon = toggleBtn.querySelector('i');
+      if (icon) {
+        icon.className = `fas ${isVisible ? 'fa-eye-slash' : 'fa-eye'}`;
+      }
+    }
+
     function openAddLabelModal() {
       const overlay = document.getElementById('accountsLabelModalOverlay');
       const input = document.getElementById('accountsLabelInput');
@@ -1196,7 +1226,7 @@
         scope,
       });
 
-      activeAccountsLabelAccordion = labelMeta.key;
+      setAccountLabelExpanded(labelMeta.key, true);
       closeAddLabelModal();
       renderAccounts();
       showToast(`Label ${labelMeta.display} added. Use Add Account inside that label.`);
@@ -1318,7 +1348,8 @@
         return;
       }
 
-      activeAccountsLabelAccordion = nextMeta.key;
+      setAccountLabelExpanded(sourceKey, false);
+      setAccountLabelExpanded(nextMeta.key, true);
       closeRenameLabelModal();
       renderAccounts();
       showToast(`Label renamed to ${nextMeta.display}.`);
@@ -2226,6 +2257,29 @@
       return { key, display: clean, value: clean };
     }
 
+    function getAccountsLabelAccordionState() {
+      if (!activeAccountsLabelAccordion || typeof activeAccountsLabelAccordion !== 'object' || Array.isArray(activeAccountsLabelAccordion)) {
+        activeAccountsLabelAccordion = {};
+      }
+      return activeAccountsLabelAccordion;
+    }
+
+    function isAccountLabelExpanded(labelKey) {
+      const key = normalizeAccountLabelGroup(labelKey).key;
+      const state = getAccountsLabelAccordionState();
+      return !!state[key];
+    }
+
+    function setAccountLabelExpanded(labelKey, expanded) {
+      const key = normalizeAccountLabelGroup(labelKey).key;
+      const state = getAccountsLabelAccordionState();
+      if (expanded) {
+        state[key] = true;
+      } else {
+        delete state[key];
+      }
+    }
+
     function collectVisibleAccountIndexes() {
       const visibleIndexes = [];
       const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
@@ -2316,7 +2370,7 @@
 
       const passwordCell = isReadonlyQueue
         ? `<td><span class="proxy-readonly" title="********">********</span></td>`
-        : `<td><div class="password-field-wrap"><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="Required password"><button class="btn btn-primary btn-sm password-copy-btn" type="button" title="Copy password" onclick="copyAccountPassword(${i})"><i class="fas fa-copy"></i></button></div></td>`;
+        : `<td><div class="password-field-wrap"><input type="password" id="acc_pass_${i}" value="${safePass}" placeholder="Required password"><button class="btn btn-primary btn-sm password-visibility-btn" type="button" id="acc_pass_toggle_${i}" title="Show password" aria-label="Show password" onclick="toggleAccountPasswordVisibility(${i})"><i class="fas fa-eye"></i></button><button class="btn btn-primary btn-sm password-copy-btn" type="button" title="Copy password" aria-label="Copy password" onclick="copyAccountPassword(${i})"><i class="fas fa-copy"></i></button></div></td>`;
 
       const profileCell = isReadonlyQueue
         ? `<span class="proxy-readonly" title="${safeProfilePreview}">${safeProfilePreview || '—'}</span>`
@@ -2356,7 +2410,7 @@
     function toggleAccountsLabelAccordion(labelKey) {
       syncAccountsFromDom();
       const normalized = normalizeAccountLabelGroup(labelKey).key;
-      activeAccountsLabelAccordion = activeAccountsLabelAccordion === normalized ? '' : normalized;
+      setAccountLabelExpanded(normalized, !isAccountLabelExpanded(normalized));
       renderAccounts();
     }
 
@@ -2441,15 +2495,25 @@
         return String(a.display || '').toLowerCase().localeCompare(String(b.display || '').toLowerCase());
       });
 
-      if (activeAccountsLabelAccordion && !groups.some(group => group.key === activeAccountsLabelAccordion)) {
-        activeAccountsLabelAccordion = groups[0].key;
+      const accordionState = getAccountsLabelAccordionState();
+      const hadExpanded = Object.keys(accordionState).length > 0;
+      const validGroupKeys = new Set(groups.map(group => group.key));
+      const nextAccordionState = {};
+      Object.keys(accordionState).forEach(key => {
+        if (validGroupKeys.has(key) && accordionState[key]) {
+          nextAccordionState[key] = true;
+        }
+      });
+      if (hadExpanded && !Object.keys(nextAccordionState).length && groups.length) {
+        nextAccordionState[groups[0].key] = true;
       }
+      activeAccountsLabelAccordion = nextAccordionState;
 
       const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
       const headerHtml = renderAccountsTableHeader();
 
       accordionRoot.innerHTML = groups.map(group => {
-        const expanded = activeAccountsLabelAccordion === group.key;
+        const expanded = !!activeAccountsLabelAccordion[group.key];
         const encodedKey = encodeURIComponent(group.key);
         const encodedLabel = encodeURIComponent(group.value || '');
         const encodedDisplay = encodeURIComponent(group.display || '');
@@ -2519,7 +2583,7 @@
         cookies_touched: false,
         shared_readonly: false,
       });
-      activeAccountsLabelAccordion = labelMeta.key;
+      setAccountLabelExpanded(labelMeta.key, true);
       buildAccountsOwnerTabs();
       renderAccountsOwnerTabs();
       renderAccounts();
