@@ -349,11 +349,20 @@ def run_bot(stop_event=None, account_owner=None):
         logger.error(f"Failed to load config from database: {e}")
         return
 
+    disabled_accounts = [
+        acc for acc in accounts
+        if not bool(acc.get("automation_enabled", True))
+    ]
+    accounts = [
+        acc for acc in accounts
+        if bool(acc.get("automation_enabled", True))
+    ]
+
     if not accounts:
         if account_owner:
-            logger.error(f"No accounts configured for employee @{account_owner}")
+            logger.error(f"No automation-enabled accounts configured for employee @{account_owner}")
         else:
-            logger.error("No accounts configured")
+            logger.error("No automation-enabled accounts configured")
         return
     if not models:
         logger.error("No models configured in database")
@@ -363,9 +372,11 @@ def run_bot(stop_event=None, account_owner=None):
         return
 
     logger.info(
-        f"Loaded {len(accounts)} accounts, {len(models)} models, "
+        f"Loaded {len(accounts)} active accounts, {len(models)} models, "
         f"{len(messages)} general messages, {len(model_message_map)} model-specific sets"
     )
+    if disabled_accounts:
+        logger.info(f"Automation disabled for {len(disabled_accounts)} account(s)")
     if account_owner:
         logger.info(f"Account scope: employee @{account_owner}")
 
@@ -393,9 +404,21 @@ def run_bot(stop_event=None, account_owner=None):
     telegram_bot.start_polling()
     telegram_bot.send_startup()
     telegram_bot.send_account_pool_summary(_build_account_pool_summary(accounts, models))
-    telegram_bot.send_account_profile_summary(accounts)
+    telegram_bot.send_account_profile_summary(accounts, limit=3, recent_only=True)
+    if disabled_accounts:
+        disabled_preview = ", ".join(
+            f"@{str(acc.get('username', '')).strip().lstrip('@')}"
+            for acc in disabled_accounts[:15]
+            if str(acc.get("username", "")).strip()
+        )
+        suffix = " ..." if len(disabled_accounts) > 15 else ""
+        log_and_telegram(
+            f"👁️ Automation disabled for {len(disabled_accounts)} account(s): {disabled_preview}{suffix}"
+        )
     _maybe_send_24h_dm_summary(hours=DM_SUMMARY_WINDOW_HOURS)
     telegram_bot.stats["status"] = "Running"
+    telegram_bot.stats["current_account"] = "—"
+    telegram_bot.stats["current_model"] = "—"
 
     total_dms_sent = 0
     completed_model_keys = set()
@@ -410,6 +433,14 @@ def run_bot(stop_event=None, account_owner=None):
                 break
 
             username = account["username"]
+            is_enabled_now = database.is_account_automation_enabled(
+                username,
+                default=bool(account.get("automation_enabled", True)),
+            )
+            if not is_enabled_now:
+                log_and_telegram(f"[{username}] 👁️‍🗨️ Automation disabled, skipping account")
+                continue
+
             account_model_key = _normalize_account_model_label(account.get("model_label", ""))
             account_models = _models_for_account(account, models)
             account_custom_messages = _normalize_message_list(account.get("custom_messages"))
@@ -509,28 +540,28 @@ def run_bot(stop_event=None, account_owner=None):
                     telegram_bot.stats["current_model"] = model_username
 
                     custom_messages = model_message_map.get(_normalize_model_key(model_username), [])
-                    label_messages = model_message_map.get(account_model_key, []) if account_model_key else []
                     if account_model_key and account_custom_messages:
                         messages_for_model = account_custom_messages
                         log_and_telegram(
                             f"[{username}] Using {len(messages_for_model)} account custom messages for @{model_username}"
                         )
                     elif account_model_key:
-                        # Labeled accounts use messages mapped to their marketing label.
-                        messages_for_model = label_messages if label_messages else messages
+                        # Labeled accounts without per-account custom messages should run with
+                        # the same generic target message flow as normal accounts.
+                        messages_for_model = custom_messages if custom_messages else messages
                         if not messages_for_model:
                             log_and_telegram(
-                                f"[{username}] ⚠️ No messages configured for marketing label '{account_label_display}', skipping"
+                                f"[{username}] ⚠️ No generic messages configured for @{model_username}, skipping"
                             )
                             continue
 
-                        if label_messages:
+                        if custom_messages:
                             log_and_telegram(
-                                f"[{username}] Using {len(messages_for_model)} label custom messages ({account_label_display}) for @{model_username}"
+                                f"[{username}] No account custom messages for label {account_label_display}; using target message set for @{model_username}"
                             )
                         else:
                             log_and_telegram(
-                                f"[{username}] No label message set for {account_label_display}; using general messages for @{model_username}"
+                                f"[{username}] No account custom messages for label {account_label_display}; using general message pool for @{model_username}"
                             )
                     else:
                         messages_for_model = custom_messages if custom_messages else messages
@@ -618,6 +649,8 @@ def run_bot(stop_event=None, account_owner=None):
             len(completed_model_keys),
             by_account=session_account_dm_counts,
         )
+        telegram_bot.stats["current_account"] = "—"
+        telegram_bot.stats["current_model"] = "—"
         telegram_bot.stats["status"] = "Stopped"
 
     logger.info("=" * 60)

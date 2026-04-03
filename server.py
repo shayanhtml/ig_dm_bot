@@ -165,6 +165,24 @@ def _normalize_text_list(raw_items):
   return clean
 
 
+def _normalize_bool_flag(raw_value, default: bool = True) -> bool:
+  if isinstance(raw_value, bool):
+    return raw_value
+  if raw_value is None:
+    return bool(default)
+  if isinstance(raw_value, (int, float)):
+    return int(raw_value) != 0
+
+  text = str(raw_value).strip().lower()
+  if text in ("", "none", "null"):
+    return bool(default)
+  if text in ("1", "true", "on", "yes", "enable", "enabled"):
+    return True
+  if text in ("0", "false", "off", "no", "disable", "disabled"):
+    return False
+  return bool(default)
+
+
 def _split_proxy_entries(raw_proxy):
   text = str(raw_proxy or "")
   if not text.strip():
@@ -579,7 +597,8 @@ def api_get_config():
                     "owner_username": str(acc.get("owner_username", "")).strip() or "master",
                     "model_label": str(acc.get("model_label", "")).strip(),
                     "proxy": _mask_proxy_for_view(acc.get("proxy", "")),
-                "profile_note": str(acc.get("profile_note", "")).strip(),
+              "profile_note": str(acc.get("profile_note", "")).strip(),
+              "automation_enabled": _normalize_bool_flag(acc.get("automation_enabled", True), default=True),
                 }
                 for acc in queue_rows
                 if str(acc.get("username", "")).strip()
@@ -593,7 +612,8 @@ def api_get_config():
                     "owner_username": str(acc.get("owner_username", "")).strip() or "master",
                     "model_label": str(acc.get("model_label", "")).strip(),
                     "proxy": _mask_proxy_for_view(acc.get("proxy", "")),
-                "profile_note": str(acc.get("profile_note", "")).strip(),
+              "profile_note": str(acc.get("profile_note", "")).strip(),
+              "automation_enabled": _normalize_bool_flag(acc.get("automation_enabled", True), default=True),
                 }
                 for acc in queue_rows
                 if str(acc.get("username", "")).strip()
@@ -621,6 +641,7 @@ def api_accounts_queue():
             "model_label": str(acc.get("model_label", "")).strip(),
             "proxy": _mask_proxy_for_view(acc.get("proxy", "")),
             "profile_note": str(acc.get("profile_note", "")).strip(),
+          "automation_enabled": _normalize_bool_flag(acc.get("automation_enabled", True), default=True),
             }
             for acc in queue_rows
             if str(acc.get("username", "")).strip()
@@ -742,6 +763,7 @@ def api_save_config(target):
                     "custom_messages": _normalize_text_list(raw_acc.get("custom_messages", [])),
                     "proxy": proxy_value,
                     "profile_note": profile_note,
+                  "automation_enabled": _normalize_bool_flag(raw_acc.get("automation_enabled", True), default=True),
                 }
                 if is_master:
                     account_entry["owner_username"] = str(raw_acc.get("owner_username", "")).strip().lower() or "master"

@@ -123,6 +123,45 @@
     #accountsTable td { vertical-align: middle; }
     #accountsTable td:last-child { white-space: nowrap; }
     .accounts-actions { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 34px; }
+    .automation-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid rgba(216, 155, 2, 0.42);
+      background: rgba(216, 155, 2, 0.12);
+      color: #f3c24d;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .automation-toggle:hover {
+      background: rgba(216, 155, 2, 0.22);
+      transform: translateY(-1px);
+    }
+    .automation-toggle.is-disabled {
+      border-color: rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.06);
+      color: #bcbcbc;
+    }
+    .automation-indicator-readonly {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid rgba(216, 155, 2, 0.24);
+      background: rgba(216, 155, 2, 0.08);
+      color: #f3c24d;
+      opacity: 0.9;
+    }
+    .automation-indicator-readonly.is-disabled {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.06);
+      color: #bcbcbc;
+    }
     .proxy-input {
       min-height: 78px;
       line-height: 1.35;
@@ -138,6 +177,50 @@
       overflow: hidden;
       text-overflow: ellipsis;
       vertical-align: middle;
+    }
+    .table-pagination {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-top: 0.2rem;
+      margin-bottom: 0.7rem;
+      flex-wrap: wrap;
+    }
+    .page-summary {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .page-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .page-indicator {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      min-width: 88px;
+      text-align: center;
+    }
+    .page-btn {
+      border: 1px solid rgba(216, 155, 2, 0.32);
+      background: rgba(216, 155, 2, 0.1);
+      color: #f3c24d;
+      border-radius: 8px;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .page-btn:hover {
+      background: rgba(216, 155, 2, 0.2);
+    }
+    .page-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      background: rgba(216, 155, 2, 0.06);
     }
 
     ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -377,13 +460,15 @@
       
       <div class="card">
         <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-          Optional model label: this is your marketing model/campaign label (for example, Alice). It does not limit target usernames. If set, the account uses that label's message set; account custom messages can override it.
+          Optional model label: this is your marketing model/campaign label (for example, Alice). It does not limit target usernames. If account custom messages are empty, this account uses the generic target message flow (target-specific messages, then general messages).
+          <br><span style="color:var(--primary);">👁 Automation</span> — click eye icon per account to enable/disable bot automation for that account.
           <br><span style="color:var(--primary);">🌐 Proxy</span> — optional, per-account. Add up to 5 proxies separated by comma (failover order left to right). Formats: <code style="font-size:0.78rem; background:#1a1a1a; padding:1px 4px; border-radius:3px;">host:port</code>, <code style="font-size:0.78rem; background:#1a1a1a; padding:1px 4px; border-radius:3px;">user:pass@host:port</code>, <code style="font-size:0.78rem; background:#1a1a1a; padding:1px 4px; border-radius:3px;">socks5://host:port</code>.
         </p>
         <div class="table-wrap">
           <table id="accountsTable">
             <thead>
               <tr>
+                <th style="width: 84px;">Auto</th>
                 <th>Username</th>
                 <th>Password (Required)</th>
                 <th style="width: 190px;">Model Label (Optional)</th>
@@ -400,6 +485,7 @@
             </tbody>
           </table>
         </div>
+        <div id="accountsPagination" class="table-pagination"></div>
         <div style="display:flex; justify-content:flex-end; margin-top: 1rem;">
           <button class="btn btn-success" onclick="saveAccounts()"><i class="fas fa-save"></i> Save Accounts</button>
         </div>
@@ -436,6 +522,7 @@
             </tbody>
           </table>
         </div>
+        <div id="modelMessagesPagination" class="table-pagination"></div>
 
         <div style="display:flex; justify-content:flex-end; margin-top: 1rem;">
           <button id="btnSaveModelMessages" class="btn btn-success" onclick="saveModelMessages()"><i class="fas fa-save"></i> Save Targets & Messages</button>
@@ -683,6 +770,8 @@
 
   <script>
     const MAX_PROXIES_PER_ACCOUNT = 5;
+    const ACCOUNTS_PAGE_SIZE = 10;
+    const MODEL_MESSAGES_PAGE_SIZE = 10;
 
     let globalAccounts = [];
     let globalModels = [];
@@ -710,6 +799,8 @@
     let confirmModalResolver = null;
     let pendingBotCommand = '';
     let lastKnownBotStatus = 'idle';
+    let accountsPage = 1;
+    let modelMessagesPage = 1;
 
     // ── UI Navigation ──
     function switchTab(tabId, buttonEl) {
@@ -929,6 +1020,43 @@
       return clean || 'master';
     }
 
+    function clampPageNumber(pageValue, totalPages) {
+      const safeTotal = Math.max(1, Number(totalPages) || 1);
+      const parsed = Number(pageValue);
+      if (!Number.isFinite(parsed)) {
+        return 1;
+      }
+      return Math.min(Math.max(1, Math.floor(parsed)), safeTotal);
+    }
+
+    function renderPagination(containerId, currentPage, totalPages, totalRows, onChangeFnName, pageSize) {
+      const container = document.getElementById(containerId);
+      if (!container) {
+        return;
+      }
+
+      if (!totalRows || totalRows <= pageSize || totalPages <= 1) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+      }
+
+      const start = ((currentPage - 1) * pageSize) + 1;
+      const end = Math.min(totalRows, currentPage * pageSize);
+      const prevDisabled = currentPage <= 1 ? 'disabled' : '';
+      const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
+
+      container.style.display = 'flex';
+      container.innerHTML = `
+        <div class="page-summary">Showing ${start}-${end} of ${totalRows}</div>
+        <div class="page-controls">
+          <button type="button" class="page-btn" ${prevDisabled} onclick="${onChangeFnName}(${currentPage - 1})">Prev</button>
+          <span class="page-indicator">Page ${currentPage} / ${totalPages}</span>
+          <button type="button" class="page-btn" ${nextDisabled} onclick="${onChangeFnName}(${currentPage + 1})">Next</button>
+        </div>
+      `;
+    }
+
     function buildAccountsOwnerTabs() {
       const owners = Array.from(new Set(
         (globalAccounts || []).map(acc => normalizeOwnerKey(acc.owner_username || 'master'))
@@ -961,6 +1089,7 @@
     }
 
     function setAccountsOwnerTab(ownerKey) {
+      syncAccountsFromDom();
       if (ownerKey === 'all') {
         if (!globalIsMaster) {
           return;
@@ -973,7 +1102,14 @@
         }
         activeAccountOwnerTab = normalized;
       }
+      accountsPage = 1;
       renderAccountsOwnerTabs();
+      renderAccounts();
+    }
+
+    function setAccountsPage(nextPage) {
+      syncAccountsFromDom();
+      accountsPage = Number(nextPage) || 1;
       renderAccounts();
     }
 
@@ -1333,6 +1469,7 @@
       const ownedAccounts = globalAccounts.map(acc => ({
         ...acc,
         custom_messages: Array.isArray(acc.custom_messages) ? acc.custom_messages : [],
+        automation_enabled: acc.automation_enabled !== false,
         shared_readonly: false,
       }));
 
@@ -1361,6 +1498,7 @@
           proxy: String(item.proxy || '').trim(),
           profile_note: String(item.profile_note || '').trim(),
           custom_messages: Array.isArray(item.custom_messages) ? item.custom_messages : [],
+          automation_enabled: item.automation_enabled !== false,
           owner_username: item.owner_username || '',
           cookies_raw: '',
           cookies_touched: false,
@@ -1392,6 +1530,7 @@
           proxy: String(acc.proxy || '').trim(),
           profile_note: String(acc.profile_note || '').trim(),
           custom_messages: Array.isArray(acc.custom_messages) ? acc.custom_messages : [],
+          automation_enabled: acc.automation_enabled !== false,
           cookies_raw: acc.cookies_raw || '',
           cookies_touched: false,
           shared_readonly: false,
@@ -1400,6 +1539,7 @@
         globalQueueAccounts = Array.isArray(data.accounts_queue) ? data.accounts_queue : [];
         mergeEmployeeQueueIntoAccounts();
         buildAccountsOwnerTabs();
+        accountsPage = 1;
         renderAccountsOwnerTabs();
         renderAccounts();
         
@@ -1463,6 +1603,8 @@
 
         backfillModelMessageMetaFromActivity();
 
+        modelMessagesPage = 1;
+
         for(let key in globalSettings) {
           const el = document.getElementById('set_' + key);
           if (el) {
@@ -1504,18 +1646,27 @@
       });
 
       if (!visibleIndexes.length) {
-        const cols = globalIsMaster ? 9 : 8;
+        const cols = globalIsMaster ? 10 : 9;
         const message = (globalIsMaster && activeAccountOwnerTab !== 'all')
           ? 'No accounts for this employee yet.'
           : 'No accounts added yet.';
         tbody.innerHTML = `<tr><td colspan="${cols}" style="color: var(--text-muted); font-size:0.85rem;">${message}</td></tr>`;
+        accountsPage = 1;
+        renderPagination('accountsPagination', 1, 1, 0, 'setAccountsPage', ACCOUNTS_PAGE_SIZE);
         return;
       }
 
-      visibleIndexes.forEach((i) => {
+      const totalRows = visibleIndexes.length;
+      const totalPages = Math.max(1, Math.ceil(totalRows / ACCOUNTS_PAGE_SIZE));
+      accountsPage = clampPageNumber(accountsPage, totalPages);
+      const startOffset = (accountsPage - 1) * ACCOUNTS_PAGE_SIZE;
+      const pageIndexes = visibleIndexes.slice(startOffset, startOffset + ACCOUNTS_PAGE_SIZE);
+
+      pageIndexes.forEach((i) => {
         const acc = globalAccounts[i];
         const ownerKey = normalizeOwnerKey(acc.owner_username || 'master');
         const isReadonlyQueue = !globalIsMaster && (!!acc.shared_readonly || ownerKey !== myOwnerKey);
+        const automationEnabled = acc.automation_enabled !== false;
         const safeUser = escapeHtml(acc.username || '');
         const safePass = escapeHtml(acc.password || '');
         const safeModelLabel = escapeHtml(acc.model_label || '');
@@ -1533,6 +1684,10 @@
         const ownerCell = globalIsMaster
           ? `<td><span class="badge" style="background:rgba(216,155,2,0.16); border:1px solid rgba(216,155,2,0.38); color:#f3c24d;">${safeOwner}</span></td>`
           : '';
+
+        const automationCell = isReadonlyQueue
+          ? `<td><span class="automation-indicator-readonly ${automationEnabled ? '' : 'is-disabled'}" title="${automationEnabled ? 'Automation enabled' : 'Automation disabled'}"><i class="fas ${automationEnabled ? 'fa-eye' : 'fa-eye-slash'}"></i></span></td>`
+          : `<td><button class="automation-toggle ${automationEnabled ? '' : 'is-disabled'}" title="${automationEnabled ? 'Automation enabled (click to disable)' : 'Automation disabled (click to enable)'}" onclick="toggleAccountAutomation(${i})"><i class="fas ${automationEnabled ? 'fa-eye' : 'fa-eye-slash'}"></i></button></td>`;
 
         const proxyCell = isReadonlyQueue
           ? `<td><span class="proxy-readonly" title="${safeReadonlyProxy || 'No proxy'}">${safeReadonlyProxy || '—'}</span></td>`
@@ -1566,10 +1721,13 @@
           ? `<span style="font-size:0.8rem; color: var(--text-muted);">Read-only</span>`
           : `<button class="btn btn-danger btn-sm" title="Delete Account" onclick="removeAccount(${i})"><i class="fas fa-trash"></i></button>`;
 
-        const rowStyle = isReadonlyQueue ? 'opacity:0.82;' : '';
+        const rowStyle = isReadonlyQueue
+          ? 'opacity:0.82;'
+          : (!automationEnabled ? 'opacity:0.72;' : '');
 
         tbody.innerHTML += `
           <tr style="${rowStyle}">
+            ${automationCell}
             ${userCell}
             ${passwordCell}
             ${modelLabelCell}
@@ -1588,6 +1746,8 @@
           </tr>
         `;
       });
+
+      renderPagination('accountsPagination', accountsPage, totalPages, totalRows, 'setAccountsPage', ACCOUNTS_PAGE_SIZE);
     }
     
     function addAccountRow() {
@@ -1609,11 +1769,13 @@
         proxy: "",
         profile_note: "",
         custom_messages: [],
+        automation_enabled: true,
         owner_username: defaultOwner,
         cookies_raw: '',
         cookies_touched: false,
         shared_readonly: false,
       });
+      accountsPage = Number.MAX_SAFE_INTEGER;
       buildAccountsOwnerTabs();
       renderAccountsOwnerTabs();
       renderAccounts();
@@ -1632,6 +1794,27 @@
       buildAccountsOwnerTabs();
       renderAccountsOwnerTabs();
       renderAccounts();
+    }
+
+    function toggleAccountAutomation(idx) {
+      syncAccountsFromDom();
+      const row = globalAccounts[idx] || null;
+      if (!row) {
+        return;
+      }
+
+      const myOwnerKey = normalizeOwnerKey(globalCurrentUser.username || '');
+      const rowOwnerKey = normalizeOwnerKey(row.owner_username || 'master');
+      if (!globalIsMaster && (row.shared_readonly || rowOwnerKey !== myOwnerKey)) {
+        showError('Other employee accounts are read-only');
+        return;
+      }
+
+      row.automation_enabled = !(row.automation_enabled !== false);
+      renderAccounts();
+      const stateLabel = row.automation_enabled !== false ? 'enabled' : 'disabled';
+      const displayUser = String(row.username || '').trim() || `row ${idx + 1}`;
+      showToast(`Automation ${stateLabel} for ${displayUser}. Click Save Accounts to apply.`);
     }
     
     function syncAccountsFromDom() {
@@ -1652,6 +1835,9 @@
         if(pr) acc.proxy = pr.value.trim();
         if (!Array.isArray(acc.custom_messages)) {
           acc.custom_messages = [];
+        }
+        if (typeof acc.automation_enabled !== 'boolean') {
+          acc.automation_enabled = true;
         }
         acc.owner_username = acc.owner_username || globalCurrentUser.username || 'master';
       });
@@ -1682,6 +1868,7 @@
             custom_messages: Array.isArray(a.custom_messages)
               ? a.custom_messages.map(x => String(x || '').trim()).filter(x => x)
               : [],
+            automation_enabled: a.automation_enabled !== false,
             owner_username: a.owner_username || globalCurrentUser.username || 'master',
             cookies_raw: a.cookies_raw || '',
             cookies_touched: !!a.cookies_touched,
@@ -1722,6 +1909,7 @@
         proxy: a.proxy,
         profile_note: a.profile_note,
         custom_messages: a.custom_messages,
+        automation_enabled: a.automation_enabled !== false,
         owner_username: a.owner_username,
       }));
 
@@ -2008,10 +2196,19 @@
             </td>
           </tr>
         `;
+        modelMessagesPage = 1;
+        renderPagination('modelMessagesPagination', 1, 1, 0, 'setModelMessagesPage', MODEL_MESSAGES_PAGE_SIZE);
         return;
       }
 
-      globalModelMessages.forEach((entry, i) => {
+      const totalRows = globalModelMessages.length;
+      const totalPages = Math.max(1, Math.ceil(totalRows / MODEL_MESSAGES_PAGE_SIZE));
+      modelMessagesPage = clampPageNumber(modelMessagesPage, totalPages);
+      const startOffset = (modelMessagesPage - 1) * MODEL_MESSAGES_PAGE_SIZE;
+      const pageEntries = globalModelMessages.slice(startOffset, startOffset + MODEL_MESSAGES_PAGE_SIZE);
+
+      pageEntries.forEach((entry, localIdx) => {
+        const i = startOffset + localIdx;
         const safeModel = escapeHtml(entry.model || '');
         const safeMessages = escapeHtml((entry.messages || []).join('\n'));
         const safeMeta = escapeHtml(formatModelMessageMeta(entry.model || ''));
@@ -2030,6 +2227,14 @@
           </tr>
         `;
       });
+
+      renderPagination('modelMessagesPagination', modelMessagesPage, totalPages, totalRows, 'setModelMessagesPage', MODEL_MESSAGES_PAGE_SIZE);
+    }
+
+    function setModelMessagesPage(nextPage) {
+      syncModelMessagesFromDom();
+      modelMessagesPage = Number(nextPage) || 1;
+      renderModelMessages();
     }
 
     function syncModelMessagesFromDom() {
@@ -2049,6 +2254,7 @@
 
       syncModelMessagesFromDom();
       globalModelMessages.push({ model: '', messages: [] });
+      modelMessagesPage = Number.MAX_SAFE_INTEGER;
       renderModelMessages();
     }
 

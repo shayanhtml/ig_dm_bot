@@ -116,6 +116,13 @@ def _ensure_account_profile_note_column(conn):
     conn.execute("UPDATE accounts SET profile_note = '' WHERE profile_note IS NULL")
 
 
+def _ensure_account_automation_enabled_column(conn):
+    if "automation_enabled" in _table_columns(conn, "accounts"):
+        return
+    conn.execute("ALTER TABLE accounts ADD COLUMN automation_enabled INTEGER NOT NULL DEFAULT 1")
+    conn.execute("UPDATE accounts SET automation_enabled = 1 WHERE automation_enabled IS NULL")
+
+
 def _normalize_account_model_label(value) -> str:
     clean = str(value or "").strip().lstrip("@")
     key = clean.lower()
@@ -136,6 +143,27 @@ def _normalize_account_custom_messages(raw_messages) -> list:
         if trimmed:
             clean_messages.append(trimmed)
     return clean_messages
+
+
+def _normalize_account_automation_enabled(raw_value, default: bool = True) -> int:
+    if isinstance(raw_value, bool):
+        return 1 if raw_value else 0
+
+    if raw_value is None:
+        return 1 if default else 0
+
+    if isinstance(raw_value, (int, float)):
+        return 0 if int(raw_value) == 0 else 1
+
+    text = str(raw_value).strip().lower()
+    if text in ("", "none", "null"):
+        return 1 if default else 0
+    if text in ("0", "false", "off", "no", "disable", "disabled"):
+        return 0
+    if text in ("1", "true", "on", "yes", "enable", "enabled"):
+        return 1
+
+    return 1 if default else 0
 
 
 def _ensure_master_user(conn):
@@ -187,7 +215,8 @@ def init_db():
                 model_label TEXT NOT NULL DEFAULT '',
                 custom_messages_json TEXT NOT NULL DEFAULT '[]',
                 proxy TEXT NOT NULL DEFAULT '',
-                profile_note TEXT NOT NULL DEFAULT ''
+                profile_note TEXT NOT NULL DEFAULT '',
+                automation_enabled INTEGER NOT NULL DEFAULT 1
             )
         """)
         
@@ -291,6 +320,7 @@ def init_db():
         _ensure_account_custom_messages_column(conn)
         _ensure_account_proxy_column(conn)
         _ensure_account_profile_note_column(conn)
+        _ensure_account_automation_enabled_column(conn)
         _ensure_master_user(conn)
 
         conn.commit()
@@ -503,7 +533,7 @@ def get_accounts(owner_username: str = None, include_all: bool = False):
     try:
         if include_all:
             rows = conn.execute(
-                "SELECT username, password, owner_username, model_label, custom_messages_json, proxy, profile_note "
+                "SELECT username, password, owner_username, model_label, custom_messages_json, proxy, profile_note, automation_enabled "
                 "FROM accounts ORDER BY owner_username, username"
             ).fetchall()
         else:
@@ -511,7 +541,7 @@ def get_accounts(owner_username: str = None, include_all: bool = False):
             if not clean_owner:
                 return []
             rows = conn.execute(
-                "SELECT username, password, owner_username, model_label, custom_messages_json, proxy, profile_note "
+                "SELECT username, password, owner_username, model_label, custom_messages_json, proxy, profile_note, automation_enabled "
                 "FROM accounts WHERE owner_username = ? ORDER BY username",
                 (clean_owner,),
             ).fetchall()
@@ -532,6 +562,7 @@ def get_accounts(owner_username: str = None, include_all: bool = False):
                     "custom_messages": _normalize_account_custom_messages(raw_custom_messages),
                     "proxy": str(r["proxy"] or "").strip(),
                     "profile_note": str(r["profile_note"] or "").strip(),
+                    "automation_enabled": bool(_normalize_account_automation_enabled(r["automation_enabled"], default=True)),
                 }
             )
 
@@ -560,12 +591,13 @@ def save_accounts(accounts_list, owner_username: str = None, include_all: bool =
                 )
                 proxy = str(acc.get("proxy", "") or "").strip()
                 profile_note = str(acc.get("profile_note", "") or "").strip()
+                automation_enabled = _normalize_account_automation_enabled(acc.get("automation_enabled", True), default=True)
                 if not profile_note:
                     raise ValueError(f"Bio + URL is required for account '{username}'")
                 conn.execute(
-                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json, proxy, profile_note) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (username, password, owner, model_label, custom_messages_json, proxy, profile_note),
+                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json, proxy, profile_note, automation_enabled) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (username, password, owner, model_label, custom_messages_json, proxy, profile_note, automation_enabled),
                 )
         else:
             clean_owner = str(owner_username or "").strip().lower()
@@ -584,12 +616,13 @@ def save_accounts(accounts_list, owner_username: str = None, include_all: bool =
                 )
                 proxy = str(acc.get("proxy", "") or "").strip()
                 profile_note = str(acc.get("profile_note", "") or "").strip()
+                automation_enabled = _normalize_account_automation_enabled(acc.get("automation_enabled", True), default=True)
                 if not profile_note:
                     raise ValueError(f"Bio + URL is required for account '{username}'")
                 conn.execute(
-                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json, proxy, profile_note) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (username, password, clean_owner, model_label, custom_messages_json, proxy, profile_note),
+                    "INSERT INTO accounts (username, password, owner_username, model_label, custom_messages_json, proxy, profile_note, automation_enabled) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (username, password, clean_owner, model_label, custom_messages_json, proxy, profile_note, automation_enabled),
                 )
 
         conn.commit()
@@ -615,6 +648,45 @@ def update_account_proxy(account_username: str, proxy_value: str) -> bool:
         )
         conn.commit()
         return (result.rowcount or 0) > 0
+    finally:
+        conn.close()
+
+
+def set_account_automation_enabled(account_username: str, enabled: bool) -> bool:
+    """Enable or disable automation for a specific IG account username."""
+    clean_username = str(account_username or "").strip().lstrip("@")
+    if not clean_username:
+        raise ValueError("Account username is required")
+
+    automation_enabled = 1 if bool(enabled) else 0
+
+    conn = _get_connection()
+    try:
+        result = conn.execute(
+            "UPDATE accounts SET automation_enabled = ? WHERE LOWER(username) = LOWER(?)",
+            (automation_enabled, clean_username),
+        )
+        conn.commit()
+        return (result.rowcount or 0) > 0
+    finally:
+        conn.close()
+
+
+def is_account_automation_enabled(account_username: str, default: bool = True) -> bool:
+    """Return current automation flag for an account username."""
+    clean_username = str(account_username or "").strip().lstrip("@")
+    if not clean_username:
+        return bool(default)
+
+    conn = _get_connection()
+    try:
+        row = conn.execute(
+            "SELECT automation_enabled FROM accounts WHERE LOWER(username) = LOWER(?)",
+            (clean_username,),
+        ).fetchone()
+        if not row:
+            return bool(default)
+        return bool(_normalize_account_automation_enabled(row["automation_enabled"], default=default))
     finally:
         conn.close()
 
