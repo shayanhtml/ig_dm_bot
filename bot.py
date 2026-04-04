@@ -218,6 +218,41 @@ def _normalize_account_model_label(raw_label: str) -> str:
     return key
 
 
+def _account_label_meta(account: dict):
+    """Return normalized label key and display name for an account row."""
+    raw_label = str((account or {}).get("model_label", "")).strip().lstrip("@")
+    label_key = _normalize_account_model_label(raw_label)
+    if label_key:
+        return label_key, (raw_label or label_key)
+    return "", "Generic"
+
+
+def _sort_accounts_for_label_batches(accounts: list) -> list:
+    """Sort accounts so runs process one label batch at a time."""
+    rows = list(accounts or [])
+
+    def _sort_key(account: dict):
+        label_key, label_display = _account_label_meta(account)
+        is_generic = 1 if not label_key else 0
+        owner_key = str(account.get("owner_username", "")).strip().lower()
+        username_key = str(account.get("username", "")).strip().lstrip("@").lower()
+        return (is_generic, str(label_display).lower(), owner_key, username_key)
+
+    return sorted(rows, key=_sort_key)
+
+
+def _count_accounts_by_label(accounts: list) -> dict:
+    """Return {label_key_or_generic: {display, count}} for active accounts."""
+    counts = {}
+    for account in accounts or []:
+        label_key, label_display = _account_label_meta(account)
+        key = label_key or "generic"
+        if key not in counts:
+            counts[key] = {"display": label_display, "count": 0}
+        counts[key]["count"] += 1
+    return counts
+
+
 def _models_for_account(account: dict, all_models: list) -> list:
     """Return target models for an account.
 
@@ -410,6 +445,8 @@ def run_bot(stop_event=None, account_owner=None):
         acc for acc in accounts
         if bool(acc.get("automation_enabled", True))
     ]
+    accounts = _sort_accounts_for_label_batches(accounts)
+    label_batch_counts = _count_accounts_by_label(accounts)
 
     if not accounts:
         if account_owner:
@@ -436,6 +473,16 @@ def run_bot(stop_event=None, account_owner=None):
         logger.info(f"Automation disabled for {len(disabled_models)} model target(s): {preview}{suffix}")
     if account_owner:
         logger.info(f"Account scope: employee @{account_owner}")
+    if label_batch_counts:
+        ordered_label_items = sorted(
+            label_batch_counts.items(),
+            key=lambda item: (1 if item[0] == "generic" else 0, str(item[1].get("display", "")).lower()),
+        )
+        label_preview = ", ".join(
+            f"{item[1].get('display', 'Generic')}({int(item[1].get('count', 0))})"
+            for item in ordered_label_items
+        )
+        logger.info(f"Label batch order: {label_preview}")
 
     # Load DM log and build 24-hour exclusion set
     dm_log = database.get_dm_logs()
@@ -480,14 +527,29 @@ def run_bot(stop_event=None, account_owner=None):
     total_dms_sent = 0
     completed_model_keys = set()
     session_account_dm_counts = {}
+    active_label_key = None
+    active_label_display = ""
 
     try:
-        for account in accounts:
+        for account_index, account in enumerate(accounts):
             _maybe_send_24h_dm_summary(hours=DM_SUMMARY_WINDOW_HOURS)
 
             if stop_event and stop_event.is_set():
                 log_and_telegram("🛑 Stop requested. Ending current session.")
                 break
+
+            label_key, label_display = _account_label_meta(account)
+            normalized_label_key = label_key or "generic"
+            if normalized_label_key != active_label_key:
+                if active_label_key is not None:
+                    log_and_telegram(f"✅ Finished label batch: {active_label_display}")
+
+                active_label_key = normalized_label_key
+                active_label_display = label_display
+                label_total = int((label_batch_counts.get(normalized_label_key) or {}).get("count", 0))
+                log_and_telegram(
+                    f"🏷️ Starting label batch: {active_label_display} ({label_total} account(s))"
+                )
 
             username = account["username"]
             is_enabled_now = database.is_account_automation_enabled(
@@ -501,7 +563,7 @@ def run_bot(stop_event=None, account_owner=None):
             account_model_key = _normalize_account_model_label(account.get("model_label", ""))
             account_models = _models_for_account(account, models)
             account_custom_messages = _normalize_message_list(account.get("custom_messages"))
-            account_label_display = str(account.get("model_label", "")).strip().lstrip("@") or ""
+            account_label_display = label_display
 
             log_and_telegram(f"━━━ Switching to account: @{username} ━━━")
             if account_model_key:
@@ -680,7 +742,7 @@ def run_bot(stop_event=None, account_owner=None):
                 _unregister_driver(driver)
 
             # Delay before switching accounts
-            if account != accounts[-1] and not (stop_event and stop_event.is_set()):
+            if account_index < len(accounts) - 1 and not (stop_event and stop_event.is_set()):
                 account_delay_min = _setting_float("ACCOUNT_SWITCH_DELAY_MIN")
                 account_delay_max = _setting_float("ACCOUNT_SWITCH_DELAY_MAX")
                 if account_delay_max < account_delay_min:
@@ -690,6 +752,9 @@ def run_bot(stop_event=None, account_owner=None):
                 log_and_telegram(f"⏳ Waiting {delay:.0f}s before switching accounts...")
                 if _interruptible_sleep(delay, stop_event=stop_event):
                     break
+
+        if active_label_key is not None and not (stop_event and stop_event.is_set()):
+            log_and_telegram(f"✅ Finished label batch: {active_label_display}")
 
     except KeyboardInterrupt:
         log_and_telegram("🛑 Bot stopped by user (Ctrl+C)")
